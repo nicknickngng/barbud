@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
 import { useAppFonts } from "./lib/fonts";
 import {
@@ -24,17 +25,34 @@ import ProcessedPhotos from "./components/ProcessedPhotos";
 import ModelSelector from "./components/ModelSelector";
 import ProfileSelector from "./components/ProfileSelector";
 import IngredientsTable from "./components/IngredientsTable";
+import PasswordGate from "./components/PasswordGate";
 import { analyzeImages, ModelType } from "./lib/api";
 import { useProfiles } from "./lib/profiles";
 
+const UNLOCK_KEY = "barbud_unlocked";
+
 export default function App() {
   const [fontsLoaded] = useAppFonts();
+  const [unlocked, setUnlocked] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [pendingImages, setPendingImages] = useState<SelectedImage[]>([]);
   const [model, setModel] = useState<ModelType>("claude");
   const [descriptions, setDescriptions] = useState<string[]>([]);
   const [stale, setStale] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(UNLOCK_KEY).then((val) => {
+      if (val === "true") setUnlocked(true);
+      setCheckingAuth(false);
+    });
+  }, []);
+
+  const handleUnlock = async () => {
+    await AsyncStorage.setItem(UNLOCK_KEY, "true");
+    setUnlocked(true);
+  };
 
   const {
     profiles,
@@ -127,8 +145,12 @@ export default function App() {
     }
   };
 
-  if (!fontsLoaded || !profilesLoaded) {
+  if (!fontsLoaded || !profilesLoaded || checkingAuth) {
     return <View style={styles.scroll} />;
+  }
+
+  if (!unlocked) {
+    return <PasswordGate onUnlock={handleUnlock} />;
   }
 
   const hasProcessedPhotos = processedPhotos.length > 0;
