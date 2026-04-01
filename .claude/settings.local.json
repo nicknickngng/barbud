@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-expo-app@latest app --template blank-typescript)",
+      "Bash(mkdir -p /c/Users/nng54/Projects/barbud/server/src/routes /c/Users/nng54/Projects/barbud/server/src/services)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(npx expo:*)",
+      "Bash(curl -s -X POST http://localhost:3000/api/analyze -H \"Content-Type: application/json\" -d '{\"\"image\"\":\"\"dGVzdA==\"\",\"\"mimeType\"\":\"\"image/jpeg\"\",\"\"model\"\":\"\"gemini\"\"}')",
+      "Bash(tasklist)",
+      "Bash(wmic process:*)",
+      "Bash(powershell -Command \"Get-Process node | Where-Object { $_.CommandLine -like ''*tsx*'' } | Select-Object Id, CommandLine\")",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //PID 12588 //F)",
+      "Bash(taskkill //PID 9392 //F)",
+      "Bash(taskkill //PID 12348 //F)",
+      "Bash(taskkill //PID 21056 //F)",
+      "Bash(git add:*)"
+    ]
+  }
+}
