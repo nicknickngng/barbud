@@ -1,5 +1,5 @@
 [functions.analyze]
-verify_jwt = true
+verify_jwt = false
 
 [functions.verify-password]
 verify_jwt = false
