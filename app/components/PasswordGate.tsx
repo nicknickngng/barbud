@@ -48,14 +48,15 @@ export default function PasswordGate({ onUnlock }: Props) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>barbud</Text>
-      <Text style={styles.subtitle}>ENTER PASSWORD</Text>
+      <Text style={styles.subtitle}>EARLY ACCESS</Text>
+      <Text style={styles.subtitle}>ENTER YOUR INVITE PASSWORD</Text>
 
       <TextInput
         style={styles.input}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        placeholder="Password"
+        placeholder="Invite password"
         placeholderTextColor={colors.parchmentMuted}
         autoCapitalize="none"
         autoCorrect={false}
