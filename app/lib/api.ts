@@ -52,7 +52,14 @@ export async function analyzeImages(
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || "Request failed");
+    // Surface detailed error from Supabase or Edge Function
+    const msg =
+      data.error ||
+      data.message ||
+      data.msg ||
+      JSON.stringify(data) ||
+      `HTTP ${response.status}`;
+    throw new Error(msg);
   }
 
   return data;
