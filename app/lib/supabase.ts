@@ -7,7 +7,7 @@ const SUPABASE_URL =
 
 const SUPABASE_ANON_KEY =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
-  "sb_publishable_SnfGP-bhu6nNCR14tBe9_A_jNDwmtVi";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impja21nZnZhYnRjaXBkcmNyZ3V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNzk4NzQsImV4cCI6MjA5MDY1NTg3NH0.0vLBzVRJISRIHql6SUPbd9DeyAuP78AGLbcMjcB-Ph0";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
