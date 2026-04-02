@@ -27,8 +27,9 @@ import ProfileSelector from "./components/ProfileSelector";
 import IngredientsTable from "./components/IngredientsTable";
 import PasswordGate from "./components/PasswordGate";
 import AuthScreen from "./components/AuthScreen";
+import CocktailList from "./components/CocktailList";
 import { AuthProvider, useAuth } from "./lib/auth";
-import { analyzeImages, ModelType } from "./lib/api";
+import { analyzeImages, recommendCocktails, Cocktail, ModelType } from "./lib/api";
 import { useProfiles } from "./lib/profiles";
 
 const UNLOCK_KEY = "barbud_unlocked";
@@ -44,6 +45,8 @@ function AppContent() {
   const [stale, setStale] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cocktails, setCocktails] = useState<Cocktail[]>([]);
+  const [loadingCocktails, setLoadingCocktails] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(UNLOCK_KEY).then((val) => {
@@ -76,6 +79,7 @@ function AppContent() {
     setDescriptions([]);
     setStale(false);
     setError(null);
+    setCocktails([]);
   }, [activeProfileId]);
 
   const handleAnalyze = async () => {
@@ -101,10 +105,30 @@ function AppContent() {
 
       setProcessedPhotos(allImages);
       setPendingImages([]);
+
+      // Fetch cocktail recommendations
+      fetchCocktails(response.ingredients);
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCocktails = async (ingredients: { name: string; quantity: string; volume: string }[]) => {
+    if (ingredients.length === 0) {
+      setCocktails([]);
+      return;
+    }
+    setLoadingCocktails(true);
+    try {
+      const res = await recommendCocktails(ingredients, model);
+      setCocktails(res.cocktails);
+    } catch {
+      // Silently fail — cocktails are a bonus, not critical
+      setCocktails([]);
+    } finally {
+      setLoadingCocktails(false);
     }
   };
 
@@ -126,6 +150,8 @@ function AppContent() {
       setDescriptions(response.descriptions);
       setActiveIngredients(response.ingredients);
       setStale(false);
+
+      fetchCocktails(response.ingredients);
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {
@@ -140,6 +166,7 @@ function AppContent() {
       setActiveIngredients([]);
       setStale(false);
       setDescriptions([]);
+      setCocktails([]);
     } else {
       setStale(true);
     }
@@ -276,6 +303,21 @@ function AppContent() {
             ingredients={activeProfile.ingredients}
             stale={stale}
           />
+        </View>
+      )}
+
+      {/* Recommended cocktails */}
+      {(cocktails.length > 0 || loadingCocktails) && (
+        <View style={styles.section}>
+          <Text style={styles.label}>
+            RECOMMENDED COCKTAILS
+            {stale ? " (outdated)" : ""}
+          </Text>
+          {loadingCocktails ? (
+            <ActivityIndicator color={colors.gold} style={{ marginTop: spacing.md }} />
+          ) : (
+            <CocktailList cocktails={cocktails} stale={stale} />
+          )}
         </View>
       )}
 

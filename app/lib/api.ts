@@ -4,6 +4,9 @@ const API_BASE =
 // Supabase uses /functions/v1/ prefix, Express uses /api/
 const isSupabase = API_BASE.includes("supabase");
 const analyzePath = isSupabase ? "/functions/v1/analyze" : "/api/analyze";
+const recommendPath = isSupabase
+  ? "/functions/v1/recommend"
+  : "/api/recommend";
 const verifyPasswordPath = isSupabase
   ? "/functions/v1/verify-password"
   : "/api/verify-password";
@@ -41,6 +44,41 @@ export async function analyzeImages(
 
   if (!response.ok) {
     // Surface detailed error from Supabase or Edge Function
+    const msg =
+      data.error ||
+      data.message ||
+      data.msg ||
+      JSON.stringify(data) ||
+      `HTTP ${response.status}`;
+    throw new Error(msg);
+  }
+
+  return data;
+}
+
+export interface Cocktail {
+  name: string;
+  recipe: string[];
+}
+
+export interface RecommendResponse {
+  cocktails: Cocktail[];
+  model: string;
+}
+
+export async function recommendCocktails(
+  ingredients: Ingredient[],
+  model: ModelType
+): Promise<RecommendResponse> {
+  const response = await fetch(`${API_BASE}${recommendPath}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ingredients, model }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
     const msg =
       data.error ||
       data.message ||
