@@ -26,13 +26,16 @@ import ModelSelector from "./components/ModelSelector";
 import ProfileSelector from "./components/ProfileSelector";
 import IngredientsTable from "./components/IngredientsTable";
 import PasswordGate from "./components/PasswordGate";
+import AuthScreen from "./components/AuthScreen";
+import { AuthProvider, useAuth } from "./lib/auth";
 import { analyzeImages, ModelType } from "./lib/api";
 import { useProfiles } from "./lib/profiles";
 
 const UNLOCK_KEY = "barbud_unlocked";
 
-export default function App() {
+function AppContent() {
   const [fontsLoaded] = useAppFonts();
+  const { session, user, loading: authLoading, signOut } = useAuth();
   const [unlocked, setUnlocked] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [pendingImages, setPendingImages] = useState<SelectedImage[]>([]);
@@ -65,7 +68,7 @@ export default function App() {
     processedPhotos,
     setProcessedPhotos,
     loaded: profilesLoaded,
-  } = useProfiles();
+  } = useProfiles(user?.id ?? null);
 
   // Clear pending images when switching profiles
   useEffect(() => {
@@ -83,7 +86,6 @@ export default function App() {
     setStale(false);
     setError(null);
 
-    // Combine pending with existing processed for the full analysis
     const allImages = [...processedPhotos, ...pendingImages];
 
     try {
@@ -97,7 +99,6 @@ export default function App() {
       setDescriptions(response.descriptions);
       setActiveIngredients(response.ingredients);
 
-      // Move pending images to processed
       setProcessedPhotos(allImages);
       setPendingImages([]);
     } catch (err: any) {
@@ -136,7 +137,6 @@ export default function App() {
     const updated = processedPhotos.filter((_, i) => i !== index);
     setProcessedPhotos(updated);
     if (updated.length === 0) {
-      // No photos left — clear ingredients entirely
       setActiveIngredients([]);
       setStale(false);
       setDescriptions([]);
@@ -145,12 +145,27 @@ export default function App() {
     }
   };
 
-  if (!fontsLoaded || !profilesLoaded || checkingAuth) {
+  if (!fontsLoaded || authLoading || checkingAuth) {
     return <View style={styles.scroll} />;
   }
 
+  // Layer 1: Supabase auth
+  if (!session) {
+    return <AuthScreen />;
+  }
+
+  // Layer 2: App password gate
   if (!unlocked) {
     return <PasswordGate onUnlock={handleUnlock} />;
+  }
+
+  // Layer 3: Wait for profiles to load
+  if (!profilesLoaded || !activeProfile) {
+    return (
+      <View style={[styles.scroll, styles.loadingWrap]}>
+        <ActivityIndicator color={colors.gold} size="large" />
+      </View>
+    );
   }
 
   const hasProcessedPhotos = processedPhotos.length > 0;
@@ -269,7 +284,20 @@ export default function App() {
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
+
+      {/* Sign out */}
+      <Pressable onPress={signOut} style={styles.signOutWrap}>
+        <Text style={styles.signOutText}>Sign out</Text>
+      </Pressable>
     </ScrollView>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
@@ -277,6 +305,10 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
     backgroundColor: colors.obsidian,
+  },
+  loadingWrap: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   container: {
     padding: spacing.containerPadding,
@@ -379,5 +411,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 15,
     color: colors.error,
+  },
+  signOutWrap: {
+    marginTop: spacing.xl,
+    alignItems: "center",
+  },
+  signOutText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.parchmentMuted,
+    letterSpacing: letterSpacing.gallery,
   },
 });

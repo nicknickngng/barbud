@@ -1,3 +1,5 @@
+import { supabase } from "./supabase";
+
 const API_BASE =
   process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -31,9 +33,19 @@ export async function analyzeImages(
   images: ImageInput[],
   model: ModelType
 ): Promise<AnalyzeResponse> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  // Attach JWT for Supabase Edge Functions (verify_jwt = true)
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    headers["Authorization"] = `Bearer ${session.access_token}`;
+  }
+
   const response = await fetch(`${API_BASE}${analyzePath}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ images, model }),
   });
 

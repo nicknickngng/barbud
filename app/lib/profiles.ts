@@ -1,7 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ingredient } from "./api";
 import { SelectedImage } from "../components/ImagePickerButton";
+import {
+  DbProfile,
+  fetchProfiles,
+  createProfile,
+  updateProfileName,
+  setProfileIngredients,
+  setActiveProfile,
+} from "./db";
+import { migrateLocalData } from "./migrate";
 
 export interface Profile {
   id: string;
@@ -9,75 +17,84 @@ export interface Profile {
   ingredients: Ingredient[];
 }
 
-const DEFAULT_PROFILES: Profile[] = [
-  { id: "1", name: "Default Profile", ingredients: [] },
-];
-
-const STORAGE_KEY = "barbud_profiles";
-const ACTIVE_PROFILE_KEY = "barbud_active_profile";
-
-let nextId = 100; // For generating new profile IDs
-
-export function useProfiles() {
-  const [profiles, setProfiles] = useState<Profile[]>(DEFAULT_PROFILES);
-  const [activeProfileId, setActiveProfileId] = useState<string>("1");
+export function useProfiles(userId: string | null) {
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [activeProfileId, setActiveProfileIdState] = useState<string>("");
   const [loaded, setLoaded] = useState(false);
 
-  // Per-profile processed photos (in-memory only, not persisted)
+  // Per-profile processed photos (in-memory only)
   const [processedPhotosMap, setProcessedPhotosMap] = useState<
     Record<string, SelectedImage[]>
   >({});
 
-  // Load from storage on mount
+  // Load profiles from Supabase on mount / user change
   useEffect(() => {
+    if (!userId) return;
+
+    let cancelled = false;
+
     (async () => {
       try {
-        const [storedProfiles, storedActive] = await Promise.all([
-          AsyncStorage.getItem(STORAGE_KEY),
-          AsyncStorage.getItem(ACTIVE_PROFILE_KEY),
-        ]);
-        if (storedProfiles) {
-          const parsed = JSON.parse(storedProfiles);
-          setProfiles(parsed);
-          // Set nextId higher than any existing ID
-          const maxId = parsed.reduce(
-            (max: number, p: Profile) => Math.max(max, parseInt(p.id) || 0),
-            0
-          );
-          nextId = maxId + 100;
+        // Attempt to migrate local AsyncStorage data first
+        await migrateLocalData(userId);
+
+        // Fetch from Supabase
+        let dbProfiles = await fetchProfiles(userId);
+
+        // Create a default profile if the user has none
+        if (dbProfiles.length === 0) {
+          const def = await createProfile(userId, "Default Profile", true);
+          dbProfiles = [def];
         }
-        if (storedActive) {
-          setActiveProfileId(storedActive);
-        }
+
+        if (cancelled) return;
+
+        const mapped: Profile[] = dbProfiles.map((p) => ({
+          id: p.id,
+          name: p.name,
+          ingredients: p.ingredients,
+        }));
+
+        setProfiles(mapped);
+
+        // Determine active profile
+        const active = dbProfiles.find((p) => p.is_active);
+        setActiveProfileIdState(active?.id ?? mapped[0].id);
       } catch (e) {
-        // Ignore storage errors, use defaults
+        console.error("Failed to load profiles:", e);
+      } finally {
+        if (!cancelled) setLoaded(true);
       }
-      setLoaded(true);
     })();
-  }, []);
 
-  // Persist profiles when they change
-  useEffect(() => {
-    if (!loaded) return;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(profiles)).catch(() => {});
-  }, [profiles, loaded]);
-
-  // Persist active profile when it changes
-  useEffect(() => {
-    if (!loaded) return;
-    AsyncStorage.setItem(ACTIVE_PROFILE_KEY, activeProfileId).catch(() => {});
-  }, [activeProfileId, loaded]);
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const activeProfile =
     profiles.find((p) => p.id === activeProfileId) ?? profiles[0];
 
+  const setActiveProfileId = useCallback(
+    (id: string) => {
+      setActiveProfileIdState(id);
+      if (userId) {
+        setActiveProfile(userId, id).catch(console.error);
+      }
+    },
+    [userId]
+  );
+
   const setActiveIngredients = useCallback(
     (ingredients: Ingredient[]) => {
+      // Optimistic local update
       setProfiles((prev) =>
         prev.map((p) =>
           p.id === activeProfileId ? { ...p, ingredients } : p
         )
       );
+      // Persist to Supabase
+      setProfileIngredients(activeProfileId, ingredients).catch(console.error);
     },
     [activeProfileId]
   );
@@ -87,17 +104,37 @@ export function useProfiles() {
       setProfiles((prev) =>
         prev.map((p) => (p.id === profileId ? { ...p, name: newName } : p))
       );
+      updateProfileName(profileId, newName).catch(console.error);
     },
     []
   );
 
-  const addProfile = useCallback((name: string) => {
-    const id = String(nextId++);
-    const newProfile: Profile = { id, name, ingredients: [] };
-    setProfiles((prev) => [...prev, newProfile]);
-    setActiveProfileId(id);
-    return id;
-  }, []);
+  const addProfile = useCallback(
+    (name: string) => {
+      if (!userId) return "";
+
+      // Create optimistic local profile with temp ID
+      const tempId = `temp_${Date.now()}`;
+      const newProfile: Profile = { id: tempId, name, ingredients: [] };
+      setProfiles((prev) => [...prev, newProfile]);
+      setActiveProfileIdState(tempId);
+
+      // Create in Supabase and replace temp ID
+      createProfile(userId, name, true)
+        .then((dbProfile) => {
+          setProfiles((prev) =>
+            prev.map((p) =>
+              p.id === tempId ? { ...p, id: dbProfile.id } : p
+            )
+          );
+          setActiveProfileIdState(dbProfile.id);
+        })
+        .catch(console.error);
+
+      return tempId;
+    },
+    [userId]
+  );
 
   // Processed photos for the active profile
   const processedPhotos = processedPhotosMap[activeProfileId] ?? [];
