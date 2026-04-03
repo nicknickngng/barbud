@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -6,6 +6,8 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
+  Animated,
+  Easing,
 } from "react-native";
 import {
   colors,
@@ -26,6 +28,59 @@ export default function AuthScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [interactable, setInteractable] = useState(false);
+
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  const titleTranslateY = useRef(new Animated.Value(0)).current;
+  const formOpacity = useRef(new Animated.Value(0)).current;
+  const formTranslateY = useRef(new Animated.Value(-24)).current;
+  const creditOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Step 1: title fades in
+    Animated.timing(titleOpacity, {
+      toValue: 1,
+      duration: 800,
+      easing: Easing.inOut(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      // Step 2: after 0.5s, title slides up while form fades + slides in
+      Animated.sequence([
+        Animated.delay(500),
+        Animated.parallel([
+          Animated.timing(titleTranslateY, {
+            toValue: -12,
+            duration: 600,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(formOpacity, {
+            toValue: 1,
+            duration: 600,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(formTranslateY, {
+            toValue: 0,
+            duration: 600,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start(({ finished }) => {
+        if (finished) {
+          setInteractable(true);
+          // Step 3: credit fades in at the bottom
+          Animated.timing(creditOpacity, {
+            toValue: 1,
+            duration: 700,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }).start();
+        }
+      });
+    });
+  }, []);
 
   const handleEmailAuth = async () => {
     if (!email.trim() || !password.trim()) return;
@@ -54,67 +109,97 @@ export default function AuthScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>the nightcap project</Text>
-      <Text style={styles.subtitle}>
-        {mode === "signin" ? "SIGN IN TO CONTINUE" : "CREATE AN ACCOUNT"}
-      </Text>
-
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        placeholder="Email"
-        placeholderTextColor={colors.parchmentMuted}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="email-address"
-      />
-
-      <TextInput
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Password"
-        placeholderTextColor={colors.parchmentMuted}
-        secureTextEntry
-        autoCapitalize="none"
-        autoCorrect={false}
-        onSubmitEditing={handleEmailAuth}
-      />
-
-      <Pressable
-        style={[styles.button, loading && styles.buttonDisabled]}
-        onPress={handleEmailAuth}
-        disabled={loading}
+      <Animated.Text
+        style={[
+          styles.title,
+          { opacity: titleOpacity, transform: [{ translateY: titleTranslateY }] },
+        ]}
       >
-        {loading ? (
-          <ActivityIndicator color={colors.obsidian} />
-        ) : (
-          <Text style={styles.buttonText}>
-            {mode === "signin" ? "SIGN IN" : "SIGN UP"}
-          </Text>
-        )}
-      </Pressable>
+        the nightcap project
+      </Animated.Text>
 
-      <View style={styles.divider}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>OR</Text>
-        <View style={styles.dividerLine} />
-      </View>
-
-      <Pressable style={styles.googleButton} onPress={handleGoogle}>
-        <Text style={styles.googleButtonText}>CONTINUE WITH GOOGLE</Text>
-      </Pressable>
-
-      <Pressable onPress={toggleMode} style={styles.toggleWrap}>
-        <Text style={styles.toggleText}>
-          {mode === "signin"
-            ? "Don't have an account? Sign up"
-            : "Already have an account? Sign in"}
+      <Animated.View
+        style={[
+          styles.form,
+          { opacity: formOpacity, transform: [{ translateY: formTranslateY }] },
+        ]}
+        pointerEvents={interactable ? "auto" : "none"}
+      >
+        <Text style={styles.subtitle}>
+          {mode === "signin" ? "SIGN IN TO CONTINUE" : "CREATE AN ACCOUNT"}
         </Text>
-      </Pressable>
 
-      {error && <Text style={styles.error}>{error}</Text>}
+        <TextInput
+          style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+          placeholder="Email"
+          placeholderTextColor={colors.parchmentMuted}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          editable={interactable}
+        />
+
+        <TextInput
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Password"
+          placeholderTextColor={colors.parchmentMuted}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          onSubmitEditing={handleEmailAuth}
+          editable={interactable}
+        />
+
+        <Pressable
+          style={[styles.button, (loading || !interactable) && styles.buttonDisabled]}
+          onPress={handleEmailAuth}
+          disabled={loading || !interactable}
+        >
+          {loading ? (
+            <ActivityIndicator color={colors.obsidian} />
+          ) : (
+            <Text style={styles.buttonText}>
+              {mode === "signin" ? "SIGN IN" : "SIGN UP"}
+            </Text>
+          )}
+        </Pressable>
+
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>OR</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <Pressable
+          style={styles.googleButton}
+          onPress={handleGoogle}
+          disabled={!interactable}
+        >
+          <Text style={styles.googleButtonText}>CONTINUE WITH GOOGLE</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={toggleMode}
+          style={styles.toggleWrap}
+          disabled={!interactable}
+        >
+          <Text style={styles.toggleText}>
+            {mode === "signin"
+              ? "Don't have an account? Sign up"
+              : "Already have an account? Sign in"}
+          </Text>
+        </Pressable>
+
+        {error && <Text style={styles.error}>{error}</Text>}
+      </Animated.View>
+
+      <Animated.Text style={[styles.credit, { opacity: creditOpacity }]}>
+        a project from nicolas ng
+      </Animated.Text>
     </View>
   );
 }
@@ -134,6 +219,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: letterSpacing.heading,
     marginBottom: spacing.sm,
+  },
+  form: {
+    width: "100%",
+    alignItems: "center",
   },
   subtitle: {
     fontFamily: fonts.body,
@@ -226,5 +315,13 @@ const styles = StyleSheet.create({
     color: colors.error,
     marginTop: spacing.lg,
     textAlign: "center",
+  },
+  credit: {
+    position: "absolute",
+    bottom: spacing.containerBottom,
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.parchmentFaint,
+    letterSpacing: letterSpacing.label,
   },
 });
