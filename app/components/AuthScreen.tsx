@@ -54,7 +54,7 @@ export default function AuthScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>barbud</Text>
+      <Text style={styles.title}>the nightcap project</Text>
       <Text style={styles.subtitle}>
         {mode === "signin" ? "SIGN IN TO CONTINUE" : "CREATE AN ACCOUNT"}
       </Text>

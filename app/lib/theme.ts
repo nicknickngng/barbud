@@ -13,9 +13,9 @@ export const colors = {
   parchmentFaint: "rgba(245, 245, 220, 0.15)",
 
   // Accents
-  gold: "#B8860B",
-  goldDim: "rgba(184, 134, 11, 0.3)",
-  goldFaint: "rgba(184, 134, 11, 0.12)",
+  gold: "#B0B5C8",
+  goldDim: "rgba(176, 181, 200, 0.3)",
+  goldFaint: "rgba(176, 181, 200, 0.12)",
 
   // Status
   error: "#A0522D", // sienna
@@ -68,17 +68,17 @@ export const borders = {
   },
 };
 
-// ─── Shadows (candlelight warmth) ────────────────────────
+// ─── Shadows ─────────────────────────────────────────────
 export const shadows = {
   warm: {
-    shadowColor: "#B8860B",
+    shadowColor: "#8A8FA0",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 4,
   },
   soft: {
-    shadowColor: "#B8860B",
+    shadowColor: "#8A8FA0",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,

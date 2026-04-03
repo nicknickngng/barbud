@@ -205,7 +205,7 @@ function AppContent() {
     >
       <StatusBar style="light" />
 
-      <Text style={styles.title}>barbud</Text>
+      <Text style={styles.title}>the nightcap project</Text>
       <Text style={styles.subtitle}>WHAT'S IN YOUR BAR CART?</Text>
 
       <View style={styles.section}>

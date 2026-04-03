@@ -47,7 +47,7 @@ export default function PasswordGate({ onUnlock }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>barbud</Text>
+      <Text style={styles.title}>the nightcap project</Text>
       <Text style={styles.subtitle}>EARLY ACCESS</Text>
       <Text style={styles.subtitle}>ENTER YOUR INVITE PASSWORD</Text>
 
