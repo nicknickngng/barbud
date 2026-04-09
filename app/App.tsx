@@ -28,6 +28,7 @@ import IngredientsTable from "./components/IngredientsTable";
 import PasswordGate from "./components/PasswordGate";
 import AuthScreen from "./components/AuthScreen";
 import CocktailList from "./components/CocktailList";
+import TargetMode from "./components/TargetMode";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { analyzeImages, recommendCocktails, Cocktail, ModelType } from "./lib/api";
 import { useProfiles } from "./lib/profiles";
@@ -37,6 +38,7 @@ const UNLOCK_KEY = "barbud_unlocked";
 function AppContent() {
   const [fontsLoaded] = useAppFonts();
   const { session, user, loading: authLoading, signOut } = useAuth();
+  const [mode, setMode] = useState<"debug" | "target">("target");
   const [unlocked, setUnlocked] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [pendingImages, setPendingImages] = useState<SelectedImage[]>([]);
@@ -67,10 +69,12 @@ function AppContent() {
     setActiveProfileId,
     setActiveIngredients,
     renameProfile,
+    removeProfile,
     addProfile,
     processedPhotos,
     setProcessedPhotos,
     loaded: profilesLoaded,
+    loadError: profileLoadError,
   } = useProfiles(user?.id ?? null);
 
   // Clear pending images when switching profiles
@@ -187,10 +191,26 @@ function AppContent() {
   }
 
   // Layer 3: Wait for profiles to load
-  if (!profilesLoaded || !activeProfile) {
+  if (!profilesLoaded) {
     return (
       <View style={[styles.scroll, styles.loadingWrap]}>
         <ActivityIndicator color={colors.gold} size="large" />
+      </View>
+    );
+  }
+
+  if (!activeProfile) {
+    return (
+      <View style={[styles.scroll, styles.loadingWrap, { padding: spacing.containerPadding }]}>
+        <Text style={[styles.subtitle, { marginBottom: spacing.md }]}>
+          {profileLoadError ? "FAILED TO LOAD PROFILES" : "NO PROFILES FOUND"}
+        </Text>
+        {profileLoadError && (
+          <Text style={styles.errorText}>{profileLoadError}</Text>
+        )}
+        <Pressable onPress={signOut} style={[styles.signOutWrap, { marginTop: spacing.lg }]}>
+          <Text style={styles.signOutText}>Sign out and try again</Text>
+        </Pressable>
       </View>
     );
   }
@@ -208,6 +228,39 @@ function AppContent() {
       <Text style={styles.title}>the nightcap project</Text>
       <Text style={styles.subtitle}>WHAT'S IN YOUR BAR CART?</Text>
 
+      <View style={styles.modeToggle}>
+        <Pressable
+          style={[styles.modeButton, mode === "target" && styles.modeButtonActive]}
+          onPress={() => setMode("target")}
+        >
+          <Text style={[styles.modeButtonText, mode === "target" && styles.modeButtonTextActive]}>
+            TARGET
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.modeButton, mode === "debug" && styles.modeButtonActive]}
+          onPress={() => setMode("debug")}
+        >
+          <Text style={[styles.modeButtonText, mode === "debug" && styles.modeButtonTextActive]}>
+            DEBUG
+          </Text>
+        </Pressable>
+      </View>
+
+      {mode === "target" && (
+        <TargetMode
+          profiles={profiles}
+          activeProfile={activeProfile}
+          activeProfileId={activeProfileId}
+          setActiveProfileId={setActiveProfileId}
+          renameProfile={renameProfile}
+          removeProfile={removeProfile}
+          addProfile={addProfile}
+          setActiveIngredients={setActiveIngredients}
+        />
+      )}
+
+      {mode === "debug" && <View>
       <View style={styles.section}>
         <Text style={styles.label}>MODEL</Text>
         <ModelSelector selected={model} onSelect={setModel} />
@@ -220,6 +273,7 @@ function AppContent() {
           activeProfileId={activeProfileId}
           onSelect={setActiveProfileId}
           onRename={renameProfile}
+          onDelete={removeProfile}
           onAdd={addProfile}
         />
       </View>
@@ -326,6 +380,7 @@ function AppContent() {
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
+      </View>}
 
       {/* Sign out */}
       <Pressable onPress={signOut} style={styles.signOutWrap}>
@@ -370,8 +425,33 @@ const styles = StyleSheet.create({
     color: colors.parchmentMuted,
     textAlign: "center",
     marginTop: spacing.sm,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
     letterSpacing: letterSpacing.subtitle,
+  },
+  modeToggle: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  modeButton: {
+    borderWidth: 1,
+    borderColor: colors.gold,
+    borderRadius: borders.radius.sm,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.lg,
+  },
+  modeButtonActive: {
+    backgroundColor: colors.gold,
+  },
+  modeButtonText: {
+    fontFamily: fonts.headingSemiBold,
+    fontSize: 11,
+    color: colors.gold,
+    letterSpacing: letterSpacing.label,
+  },
+  modeButtonTextActive: {
+    color: colors.obsidian,
   },
   section: {
     marginBottom: spacing.section,

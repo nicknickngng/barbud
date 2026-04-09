@@ -43,7 +43,16 @@
       "Bash(taskkill //PID 41216 //F)",
       "Bash(curl -s http://localhost:3000/health)",
       "Bash(git config:*)",
-      "Bash(gh auth:*)"
+      "Bash(gh auth:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(start http://localhost:8081)",
+      "Bash(pkill -f \"tsx watch\")",
+      "Bash(pkill -f \"expo start\")",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(npx tsc:*)",
+      "Bash(curl -s \"https://jckmgfvabtcipdrcrguu.supabase.co/rest/v1/\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impja21nZnZhYnRjaXBkcmNyZ3V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNzk4NzQsImV4cCI6MjA5MDY1NTg3NH0.0vLBzVRJISRIHql6SUPbd9DeyAuP78AGLbcMjcB-Ph0\")"
     ]
   }
 }

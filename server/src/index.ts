@@ -4,6 +4,7 @@ import express from "express";
 import cors from "cors";
 import analyzeRouter from "./routes/analyze.js";
 import recommendRouter from "./routes/recommend.js";
+import instructionsRouter from "./routes/instructions.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,6 +14,7 @@ app.use(express.json({ limit: "50mb" }));
 
 app.use("/api/analyze", analyzeRouter);
 app.use("/api/recommend", recommendRouter);
+app.use("/api/instructions", instructionsRouter);
 
 app.post("/api/verify-password", (req, res) => {
   const { password } = req.body;

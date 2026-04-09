@@ -19,11 +19,12 @@ export async function migrateLocalData(userId: string): Promise<boolean> {
   const alreadyMigrated = await AsyncStorage.getItem(MIGRATED_KEY);
   if (alreadyMigrated === "true") return false;
 
+  // Mark as migrated immediately so a crash mid-migration never causes a retry
+  // that would create duplicate profiles in Supabase.
+  await AsyncStorage.setItem(MIGRATED_KEY, "true");
+
   const raw = await AsyncStorage.getItem(PROFILES_KEY);
-  if (!raw) {
-    await AsyncStorage.setItem(MIGRATED_KEY, "true");
-    return false;
-  }
+  if (!raw) return false;
 
   const localProfiles: LocalProfile[] = JSON.parse(raw);
   if (localProfiles.length === 0) {
@@ -43,7 +44,12 @@ export async function migrateLocalData(userId: string): Promise<boolean> {
     if (lp.id === activeId) activeDbId = dbProfile.id;
 
     if (lp.ingredients.length > 0) {
-      await setProfileIngredients(dbProfile.id, lp.ingredients);
+      const sanitized = lp.ingredients.map((ing) => ({
+        name: ing.name ?? "",
+        quantity: ing.quantity ?? "",
+        volume: ing.volume ?? "",
+      }));
+      await setProfileIngredients(dbProfile.id, sanitized);
     }
   }
 
@@ -55,7 +61,6 @@ export async function migrateLocalData(userId: string): Promise<boolean> {
 
   // Clean up local storage
   await AsyncStorage.multiRemove([PROFILES_KEY, ACTIVE_KEY]);
-  await AsyncStorage.setItem(MIGRATED_KEY, "true");
 
   return true;
 }

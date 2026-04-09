@@ -24,6 +24,7 @@ interface Props {
   activeProfileId: string;
   onSelect: (profileId: string) => void;
   onRename: (profileId: string, newName: string) => void;
+  onDelete: (profileId: string) => void;
   onAdd: (name: string) => void;
 }
 
@@ -32,6 +33,7 @@ export default function ProfileSelector({
   activeProfileId,
   onSelect,
   onRename,
+  onDelete,
   onAdd,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -95,42 +97,58 @@ export default function ProfileSelector({
                   onLongPress={() => startRename(item)}
                 >
                   <View style={styles.optionContent}>
-                    {editingId === item.id ? (
-                      <TextInput
-                        style={styles.editInput}
-                        value={editText}
-                        onChangeText={setEditText}
-                        onSubmitEditing={commitRename}
-                        onBlur={commitRename}
-                        autoFocus
-                        selectTextOnFocus
-                      />
-                    ) : (
-                      <Text
-                        style={[
-                          styles.optionText,
-                          item.id === activeProfileId &&
-                            styles.optionTextSelected,
-                        ]}
-                      >
-                        {item.name}
-                      </Text>
-                    )}
-                    <View style={styles.optionRight}>
+                    {/* Left: name + ingredient count */}
+                    <View style={styles.optionLeft}>
+                      {editingId === item.id ? (
+                        <TextInput
+                          style={styles.editInput}
+                          value={editText}
+                          onChangeText={setEditText}
+                          onSubmitEditing={commitRename}
+                          onBlur={commitRename}
+                          autoFocus
+                          selectTextOnFocus
+                        />
+                      ) : (
+                        <Text
+                          style={[
+                            styles.optionText,
+                            item.id === activeProfileId && styles.optionTextSelected,
+                          ]}
+                        >
+                          {item.name}
+                        </Text>
+                      )}
                       <Text style={styles.ingredientCount}>
                         {item.ingredients.length} ingredient
                         {item.ingredients.length !== 1 ? "s" : ""}
                       </Text>
-                      {editingId !== item.id && (
+                    </View>
+
+                    {/* Right: rename + delete */}
+                    {editingId !== item.id && (
+                      <View style={styles.optionActions}>
                         <Pressable
-                          style={styles.renameBtn}
+                          style={styles.actionBtn}
                           onPress={() => startRename(item)}
                           hitSlop={8}
                         >
-                          <Text style={styles.renameBtnText}>rename</Text>
+                          <Text style={styles.actionBtnText}>rename</Text>
                         </Pressable>
-                      )}
-                    </View>
+                        {profiles.length > 1 && (
+                          <Pressable
+                            style={styles.actionBtn}
+                            onPress={() => {
+                              onDelete(item.id);
+                              setOpen(false);
+                            }}
+                            hitSlop={8}
+                          >
+                            <Text style={[styles.actionBtnText, styles.deleteBtnText]}>delete</Text>
+                          </Pressable>
+                        )}
+                      </View>
+                    )}
                   </View>
                 </Pressable>
               )}
@@ -198,9 +216,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  optionRight: {
-    alignItems: "flex-end",
-    gap: 4,
+  optionLeft: {
+    flex: 1,
+    gap: 3,
+  },
+  optionActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginLeft: spacing.sm,
   },
   optionText: {
     fontFamily: fonts.body,
@@ -228,15 +252,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.parchmentMuted,
   },
-  renameBtn: {
-    paddingVertical: 2,
+  actionBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 2,
   },
-  renameBtnText: {
+  actionBtnText: {
     fontFamily: fonts.body,
     fontSize: 10,
     color: colors.goldDim,
     letterSpacing: 1,
     textTransform: "uppercase",
+  },
+  deleteBtnText: {
+    color: colors.error,
   },
   addOption: {
     paddingHorizontal: 20,
