@@ -20,10 +20,14 @@ export interface SelectedImage {
 interface Props {
   images: SelectedImage[];
   onImagesChanged: (images: SelectedImage[]) => void;
+  maxImages?: number;
 }
 
-export default function ImagePickerButton({ images, onImagesChanged }: Props) {
+export default function ImagePickerButton({ images, onImagesChanged, maxImages }: Props) {
+  const atLimit = maxImages !== undefined && images.length >= maxImages;
+
   const pickImages = async () => {
+    if (atLimit) return;
     const permission =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -43,8 +47,11 @@ export default function ImagePickerButton({ images, onImagesChanged }: Props) {
 
     if (result.canceled || result.assets.length === 0) return;
 
+    const slotsLeft = maxImages !== undefined ? maxImages - images.length : result.assets.length;
+    const assetsToProcess = result.assets.slice(0, slotsLeft);
+
     const newImages: SelectedImage[] = [];
-    for (const asset of result.assets) {
+    for (const asset of assetsToProcess) {
       if (!asset.base64) continue;
       const resized = await resizeImageIfNeeded(
         asset.uri,
@@ -89,12 +96,19 @@ export default function ImagePickerButton({ images, onImagesChanged }: Props) {
           </View>
         ))}
 
-        <Pressable style={styles.addButton} onPress={pickImages}>
-          <Text style={styles.addIcon}>+</Text>
-          <Text style={styles.addText}>
-            {images.length === 0 ? "Add photos" : "Add more"}
-          </Text>
-        </Pressable>
+        {!atLimit && (
+          <Pressable style={styles.addButton} onPress={pickImages}>
+            <Text style={styles.addIcon}>+</Text>
+            <Text style={styles.addText}>
+              {images.length === 0 ? "Add photos" : "Add more"}
+            </Text>
+          </Pressable>
+        )}
+        {atLimit && (
+          <View style={[styles.addButton, styles.addButtonDisabled]}>
+            <Text style={[styles.addText, { fontSize: 11 }]}>Max {maxImages}{"\n"}reached</Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -145,6 +159,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.charcoal,
     alignItems: "center",
     justifyContent: "center",
+  },
+  addButtonDisabled: {
+    opacity: 0.4,
   },
   addIcon: {
     fontSize: 28,

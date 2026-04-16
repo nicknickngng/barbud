@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { StyleSheet, View, ActivityIndicator } from "react-native";
+import { StyleSheet, View, ActivityIndicator, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
 import { useAppFonts } from "./lib/fonts";
@@ -50,6 +50,18 @@ function AppContent() {
       if (val === "true") setUnlocked(true);
       setCheckingAuth(false);
     });
+  }, []);
+
+  // Remove trailing "#" from URL on web (left behind after OAuth redirect)
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    if (window.location.hash === "" && window.location.href.includes("#")) {
+      window.history.replaceState(
+        null,
+        document.title,
+        window.location.pathname + window.location.search
+      );
+    }
   }, []);
 
   const handleUnlock = async () => {
@@ -212,7 +224,7 @@ function AppContent() {
         <StatusBar style="light" />
         <ProfileCreationScreen
           onProfileCreated={handleProfileCreated}
-          onBack={() => setScreen(profiles.length > 0 ? "profile-select" : "profile-select")}
+          onBack={() => setScreen("profile-select")}
         />
       </>
     );

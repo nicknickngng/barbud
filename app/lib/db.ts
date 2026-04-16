@@ -78,9 +78,9 @@ export async function setProfileIngredients(
   if (ingredients.length > 0) {
     const rows = ingredients.map((ing) => ({
       profile_id: profileId,
-      name: ing.name,
-      quantity: ing.quantity,
-      volume: ing.volume,
+      name: ing.name ?? "",
+      quantity: ing.quantity ?? "",
+      volume: ing.volume ?? "",
     }));
 
     const { error: insError } = await supabase

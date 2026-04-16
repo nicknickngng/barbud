@@ -10,6 +10,9 @@ const recommendPath = isSupabase
 const verifyPasswordPath = isSupabase
   ? "/functions/v1/verify-password"
   : "/api/verify-password";
+const instructionsPath = isSupabase
+  ? "/functions/v1/instructions"
+  : "/api/instructions";
 
 export type ModelType = "claude" | "gpt4o" | "gemini";
 
@@ -58,6 +61,7 @@ export async function analyzeImages(
 
 export interface Cocktail {
   name: string;
+  description?: string;
   recipe: string[];
 }
 
@@ -74,6 +78,37 @@ export async function recommendCocktails(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ingredients, model }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const msg =
+      data.error ||
+      data.message ||
+      data.msg ||
+      JSON.stringify(data) ||
+      `HTTP ${response.status}`;
+    throw new Error(msg);
+  }
+
+  return data;
+}
+
+export interface InstructionsResponse {
+  ingredients: string[];
+  tools: string[];
+  steps: string[];
+}
+
+export async function getInstructions(
+  cocktailName: string,
+  recipe: string[]
+): Promise<InstructionsResponse> {
+  const response = await fetch(`${API_BASE}${instructionsPath}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cocktailName, recipe }),
   });
 
   const data = await response.json();
