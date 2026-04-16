@@ -67,14 +67,16 @@ export default function CocktailResultScreen({
       contentContainerStyle={styles.content}
     >
       <Animated.View style={[styles.cardWrapper, { opacity: fadeAnim }]}>
-        <Text style={styles.emoji}>🍸</Text>
         <Text style={styles.cocktailName}>{cocktail.name}</Text>
 
         <View style={styles.card}>
-          <Text style={styles.sectionLabel}>RECIPE</Text>
-          {cocktail.recipe.map((line, i) => (
+          {cocktail.description ? (
+            <Text style={styles.descriptionText}>{cocktail.description}</Text>
+          ) : null}
+          <Text style={styles.sectionLabel}>INGREDIENTS</Text>
+          {cocktail.ingredients.map((ingredient, i) => (
             <Text key={i} style={styles.recipeLine}>
-              {line}
+              {ingredient.quantity}{"  "}{ingredient.name}
             </Text>
           ))}
         </View>
@@ -111,17 +113,12 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.containerPadding,
     paddingTop: spacing.containerTop,
-    paddingBottom: spacing.containerBottom,
+    paddingBottom: 100,
     alignItems: "center",
   },
   cardWrapper: {
     width: "100%",
     alignItems: "center",
-  },
-  emoji: {
-    fontSize: 48,
-    textAlign: "center",
-    marginBottom: spacing.md,
   },
   cocktailName: {
     fontFamily: fonts.heading,
@@ -138,11 +135,19 @@ const styles = StyleSheet.create({
     borderColor: colors.goldDim,
     padding: spacing.lg,
     width: "100%",
-    maxWidth: 400,
+    maxWidth: 480,
     ...shadows.soft,
   },
-  sectionLabel: {
+  descriptionText: {
     fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.parchmentMuted,
+    lineHeight: 22,
+    marginBottom: spacing.md,
+    textAlign: "center",
+  },
+  sectionLabel: {
+    fontFamily: fonts.headingSemiBold,
     fontSize: 11,
     color: colors.parchmentMuted,
     letterSpacing: letterSpacing.label,
@@ -150,14 +155,14 @@ const styles = StyleSheet.create({
   },
   recipeLine: {
     fontFamily: fonts.body,
-    fontSize: 15,
+    fontSize: 14,
     color: colors.parchment,
-    lineHeight: 24,
-    marginBottom: spacing.sm,
+    lineHeight: 22,
+    marginBottom: spacing.xs,
   },
   buttons: {
     width: "100%",
-    maxWidth: 400,
+    maxWidth: 480,
     marginTop: spacing.xl,
   },
   primaryButton: {

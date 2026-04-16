@@ -17,7 +17,8 @@ import IngredientCaptureScreen from "./components/IngredientCaptureScreen";
 import LoadingScreen from "./components/LoadingScreen";
 import CocktailResultScreen from "./components/CocktailResultScreen";
 import RecipeScreen from "./components/RecipeScreen";
-import SettingsScreen from "./components/SettingsScreen";
+import BottomNav from "./components/BottomNav";
+import SettingsModal from "./components/SettingsModal";
 
 const UNLOCK_KEY = "barbud_unlocked";
 
@@ -27,8 +28,16 @@ type AppScreen =
   | "ingredient-capture"
   | "loading"
   | "cocktail-result"
-  | "recipe"
-  | "settings";
+  | "recipe";
+
+// Screens that show the BottomNav
+const SCREENS_WITH_NAV: AppScreen[] = [
+  "profile-select",
+  "profile-create",
+  "ingredient-capture",
+  "cocktail-result",
+  "recipe",
+];
 
 function AppContent() {
   const [fontsLoaded] = useAppFonts();
@@ -36,8 +45,12 @@ function AppContent() {
   const [unlocked, setUnlocked] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // ─── App screen state machine ─────────────────────────────
+  // ─── Screen state machine ──────────────────────────────────
   const [screen, setScreen] = useState<AppScreen>("profile-select");
+  const [screenHistory, setScreenHistory] = useState<AppScreen[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // ─── App data state ────────────────────────────────────────
   const [model, setModel] = useState<ModelType>("claude");
   const [cocktails, setCocktails] = useState<Cocktail[]>([]);
   const [currentCocktail, setCurrentCocktail] = useState<Cocktail | null>(null);
@@ -83,45 +96,63 @@ function AppContent() {
   // Auto-redirect to profile creation when user has no profiles
   useEffect(() => {
     if (profilesLoaded && profiles.length === 0 && screen === "profile-select") {
-      setScreen("profile-create");
+      navigateTo("profile-create");
     }
-  }, [profilesLoaded, profiles.length, screen]);
+  }, [profilesLoaded, profiles.length]);
+
+  // ─── Navigation helpers ───────────────────────────────────
+  const navigateTo = (next: AppScreen) => {
+    setScreen((prev) => {
+      // Don't push "loading" onto history (it's not a meaningful back target)
+      if (prev !== "loading" && prev !== next) {
+        setScreenHistory((h) => [...h, prev]);
+      }
+      return next;
+    });
+  };
+
+  const handleBack = () => {
+    setScreenHistory((h) => {
+      if (h.length === 0) return h;
+      const prev = h[h.length - 1];
+      setScreen(prev);
+      return h.slice(0, -1);
+    });
+  };
+
+  const handleStartOver = () => {
+    setScreenHistory([]);
+    setScreen("profile-select");
+  };
 
   // ─── Navigation handlers ──────────────────────────────────
   const handleSelectProfile = (id: string) => {
     setActiveProfileId(id);
-    setScreen("ingredient-capture");
+    navigateTo("ingredient-capture");
   };
 
   const handleNewProfile = () => {
-    setScreen("profile-create");
+    navigateTo("profile-create");
   };
 
   const handleProfileCreated = (name: string, _prefs: TastePreferences) => {
     addProfile(name);
-    setScreen("ingredient-capture");
-  };
-
-  const handleSettings = () => {
-    setScreen("settings");
-  };
-
-  const handleStartOver = () => {
-    setScreen("profile-select");
+    navigateTo("ingredient-capture");
   };
 
   const handleMakeIt = (cocktail: Cocktail) => {
     setCurrentCocktail(cocktail);
-    setScreen("recipe");
+    navigateTo("recipe");
   };
 
-  const handleDone = () => {
-    setScreen("ingredient-capture");
+  const handleBothReady = () => {
+    navigateTo("cocktail-result");
   };
 
   // ─── API logic ────────────────────────────────────────────
   const runAnalysisAndRecommend = async (images: SelectedImage[]) => {
     setApiReady(false);
+    // Don't push loading into history
     setScreen("loading");
 
     try {
@@ -168,10 +199,6 @@ function AppContent() {
     setApiReady(true);
   };
 
-  const handleBothReady = () => {
-    setScreen("cocktail-result");
-  };
-
   const handleSignOut = async () => {
     await AsyncStorage.removeItem(UNLOCK_KEY);
     await signOut();
@@ -198,110 +225,97 @@ function AppContent() {
     );
   }
 
-  // ─── Screen state machine ─────────────────────────────────
+  // ─── Derived values ───────────────────────────────────────
   const userName =
     user?.user_metadata?.full_name ??
     user?.email?.split("@")[0] ??
     "there";
 
-  if (screen === "profile-select") {
-    return (
-      <>
-        <StatusBar style="light" />
+  const showBottomNav = SCREENS_WITH_NAV.includes(screen);
+  const backDisabled = screenHistory.length === 0;
+
+  // ─── Screen renderers ─────────────────────────────────────
+  const renderScreen = () => {
+    if (screen === "profile-select") {
+      return (
         <ProfileSelectionScreen
           profiles={profiles}
           userName={userName}
           onSelectProfile={handleSelectProfile}
           onNewProfile={handleNewProfile}
         />
-      </>
-    );
-  }
-
-  if (screen === "profile-create") {
-    return (
-      <>
-        <StatusBar style="light" />
-        <ProfileCreationScreen
-          onProfileCreated={handleProfileCreated}
-          onBack={() => setScreen("profile-select")}
-        />
-      </>
-    );
-  }
-
-  if (screen === "ingredient-capture") {
-    // Safeguard: if no active profile yet, wait
-    if (!activeProfile) {
-      return (
-        <View style={styles.spinnerWrap}>
-          <ActivityIndicator color={colors.gold} size="large" />
-        </View>
       );
     }
-    return (
-      <>
-        <StatusBar style="light" />
+
+    if (screen === "profile-create") {
+      return (
+        <ProfileCreationScreen
+          onProfileCreated={handleProfileCreated}
+          onBack={handleBack}
+        />
+      );
+    }
+
+    if (screen === "ingredient-capture") {
+      if (!activeProfile) {
+        return (
+          <View style={styles.spinnerWrap}>
+            <ActivityIndicator color={colors.gold} size="large" />
+          </View>
+        );
+      }
+      return (
         <IngredientCaptureScreen
           activeProfile={activeProfile}
           model={model}
           onModelChange={setModel}
           onSubmit={runAnalysisAndRecommend}
-          onSettings={handleSettings}
         />
-      </>
-    );
-  }
+      );
+    }
 
-  if (screen === "loading") {
-    return (
-      <>
-        <StatusBar style="light" />
-        <LoadingScreen apiReady={apiReady} onBothReady={handleBothReady} />
-      </>
-    );
-  }
+    if (screen === "loading") {
+      return <LoadingScreen apiReady={apiReady} onBothReady={handleBothReady} />;
+    }
 
-  if (screen === "cocktail-result") {
-    return (
-      <>
-        <StatusBar style="light" />
+    if (screen === "cocktail-result") {
+      return (
         <CocktailResultScreen
           cocktails={cocktails}
           onMakeIt={handleMakeIt}
           onAnother={handleAnother}
         />
-      </>
-    );
-  }
+      );
+    }
 
-  if (screen === "recipe") {
-    return (
-      <>
-        <StatusBar style="light" />
-        <RecipeScreen
-          cocktail={currentCocktail!}
-          onDone={handleDone}
+    if (screen === "recipe") {
+      return <RecipeScreen cocktail={currentCocktail!} />;
+    }
+
+    return null;
+  };
+
+  return (
+    <View style={styles.root}>
+      <StatusBar style="light" />
+      {renderScreen()}
+      {showBottomNav && (
+        <BottomNav
+          onBack={handleBack}
+          onStartOver={handleStartOver}
+          onSettings={() => setSettingsOpen(true)}
+          backDisabled={backDisabled}
         />
-      </>
-    );
-  }
-
-  if (screen === "settings") {
-    return (
-      <>
-        <StatusBar style="light" />
-        <SettingsScreen
+      )}
+      {settingsOpen && (
+        <SettingsModal
           userEmail={user?.email ?? ""}
           onSignOut={handleSignOut}
-          onStartOver={handleStartOver}
-          onClose={() => setScreen("ingredient-capture")}
+          onClose={() => setSettingsOpen(false)}
         />
-      </>
-    );
-  }
-
-  return <View style={styles.blank} />;
+      )}
+    </View>
+  );
 }
 
 export default function App() {
@@ -313,6 +327,10 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.obsidian,
+  },
   blank: {
     flex: 1,
     backgroundColor: colors.obsidian,

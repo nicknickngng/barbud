@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import {
   colors,
@@ -21,59 +21,113 @@ const MESSAGES = [
 
 export default function LoadingScreen({ apiReady, onBothReady }: Props) {
   const [displayText, setDisplayText] = useState("");
-  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
 
   const pulseAnim = useRef(new Animated.Value(0.6)).current;
   const glassOpacity = useRef(new Animated.Value(0)).current;
-  const animationDone = useRef(false);
 
-  // Typewriter state refs for cleanup
-  const typewriterInterval = useRef<ReturnType<typeof setInterval> | null>(
-    null
-  );
-  const typewriterTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const charIndexRef = useRef(0);
-  const currentTargetRef = useRef("");
+  // Single interval ref for the typewriter, single timeout ref for pauses/delays
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const loopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clearTypewriter = () => {
-    if (typewriterInterval.current) {
-      clearInterval(typewriterInterval.current);
-      typewriterInterval.current = null;
-    }
-    if (typewriterTimeout.current) {
-      clearTimeout(typewriterTimeout.current);
-      typewriterTimeout.current = null;
-    }
-  };
-
-  const startTypewriter = (target: string, messageIndex: number) => {
-    clearTypewriter();
-    setDisplayText("");
-    setCurrentMessageIndex(messageIndex);
-    charIndexRef.current = 0;
-    currentTargetRef.current = target;
-
-    typewriterInterval.current = setInterval(() => {
-      charIndexRef.current += 1;
-      const next = currentTargetRef.current.slice(0, charIndexRef.current);
-      setDisplayText(next);
-
-      if (charIndexRef.current >= currentTargetRef.current.length) {
-        clearInterval(typewriterInterval.current!);
-        typewriterInterval.current = null;
-      }
-    }, 45);
-  };
-
-  // Watch apiReady — when it flips true, fire if animation is already done
+  // Sync apiReady prop into a ref so the cycling callbacks can read it without
+  // needing to be re-created on every render
+  const apiReadyRef = useRef(false);
   useEffect(() => {
-    if (apiReady && animationDone.current) {
-      onBothReady();
-    }
+    apiReadyRef.current = apiReady;
   }, [apiReady]);
 
+  // Ref to the onBothReady callback so it's always fresh inside closures
+  const onBothReadyRef = useRef(onBothReady);
   useEffect(() => {
-    // Start pulsing animation
+    onBothReadyRef.current = onBothReady;
+  }, [onBothReady]);
+
+  const clearTimers = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (loopRef.current) {
+      clearTimeout(loopRef.current);
+      loopRef.current = null;
+    }
+  }, []);
+
+  // startMessage: types out messages[index] char-by-char at 45ms/char,
+  // then waits 1000ms, then calls onComplete.
+  const startMessage = useCallback(
+    (index: number, onComplete: () => void) => {
+      clearTimers();
+      setDisplayText("");
+
+      const target = MESSAGES[index];
+      let charIndex = 0;
+
+      intervalRef.current = setInterval(() => {
+        charIndex += 1;
+        setDisplayText(target.slice(0, charIndex));
+
+        if (charIndex >= target.length) {
+          clearInterval(intervalRef.current!);
+          intervalRef.current = null;
+
+          // Pause 1000ms then call onComplete
+          loopRef.current = setTimeout(() => {
+            loopRef.current = null;
+            onComplete();
+          }, 1000);
+        }
+      }, 45);
+    },
+    [clearTimers]
+  );
+
+  // Forward-declare via ref so cycleMessages and startFinalMessage can
+  // reference each other without stale-closure issues.
+  const startFinalMessageRef = useRef<() => void>(() => {});
+  const cycleMessagesRef = useRef<(index: number) => void>(() => {});
+
+  const startFinalMessage = useCallback(() => {
+    startMessage(3, () => {
+      // Fade in the glass emoji
+      Animated.timing(glassOpacity, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
+
+      // After fade (600ms) + extra 2000ms, call onBothReady
+      loopRef.current = setTimeout(() => {
+        loopRef.current = null;
+        onBothReadyRef.current();
+      }, 2600);
+    });
+  }, [startMessage, glassOpacity]);
+
+  const cycleMessages = useCallback(
+    (index: number) => {
+      startMessage(index % 3, () => {
+        if (apiReadyRef.current) {
+          startFinalMessageRef.current();
+        } else {
+          cycleMessagesRef.current(index + 1);
+        }
+      });
+    },
+    [startMessage]
+  );
+
+  // Keep the refs in sync with the latest callback instances
+  useEffect(() => {
+    startFinalMessageRef.current = startFinalMessage;
+  }, [startFinalMessage]);
+
+  useEffect(() => {
+    cycleMessagesRef.current = cycleMessages;
+  }, [cycleMessages]);
+
+  // Mount effect: start pulse + begin cycling
+  useEffect(() => {
     const pulseLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -90,56 +144,12 @@ export default function LoadingScreen({ apiReady, onBothReady }: Props) {
     );
     pulseLoop.start();
 
-    const timers: ReturnType<typeof setTimeout>[] = [];
-
-    // 0ms: string 1
-    timers.push(
-      setTimeout(() => {
-        startTypewriter(MESSAGES[0], 0);
-      }, 0)
-    );
-
-    // ~700ms: string 2
-    timers.push(
-      setTimeout(() => {
-        startTypewriter(MESSAGES[1], 1);
-      }, 700)
-    );
-
-    // ~1400ms: string 3
-    timers.push(
-      setTimeout(() => {
-        startTypewriter(MESSAGES[2], 2);
-      }, 1400)
-    );
-
-    // ~2100ms: string 4 + fade in glass emoji
-    timers.push(
-      setTimeout(() => {
-        startTypewriter(MESSAGES[3], 3);
-        Animated.timing(glassOpacity, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }).start();
-      }, 2100)
-    );
-
-    // 2800ms: animation done
-    timers.push(
-      setTimeout(() => {
-        animationDone.current = true;
-        pulseLoop.stop();
-        if (apiReady) {
-          onBothReady();
-        }
-      }, 2800)
-    );
+    // Kick off the cycling sequence
+    cycleMessagesRef.current(0);
 
     return () => {
-      timers.forEach(clearTimeout);
-      clearTypewriter();
       pulseLoop.stop();
+      clearTimers();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

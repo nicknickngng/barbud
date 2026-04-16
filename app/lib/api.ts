@@ -59,10 +59,17 @@ export async function analyzeImages(
   return data;
 }
 
+export interface CocktailIngredient {
+  name: string;
+  quantity: string; // e.g. "1.5 oz" or "2 dashes"
+}
+
 export interface Cocktail {
   name: string;
   description?: string;
-  recipe: string[];
+  ingredients: CocktailIngredient[];
+  gear: string[];
+  steps: string[];
 }
 
 export interface RecommendResponse {

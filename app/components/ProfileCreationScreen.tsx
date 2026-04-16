@@ -104,7 +104,7 @@ export default function ProfileCreationScreen({ onProfileCreated, onBack }: Prop
 
     setTimeout(() => {
       onProfileCreated(profileName.trim(), prefs);
-    }, 1000);
+    }, 3000);
   };
 
   const sliders: {
@@ -224,7 +224,10 @@ const styles = StyleSheet.create({
   container: {
     padding: spacing.containerPadding,
     paddingTop: spacing.containerTop,
-    paddingBottom: spacing.containerBottom,
+    paddingBottom: 100,
+    maxWidth: 480,
+    width: "100%",
+    alignSelf: "center",
   },
 
   // ─── Back button ──────────────────────────────────────────

@@ -27,7 +27,6 @@ interface Props {
   model: ModelType;
   onModelChange: (model: ModelType) => void;
   onSubmit: (images: SelectedImage[]) => void;
-  onSettings: () => void;
 }
 
 // ─── IngredientCaptureScreen ──────────────────────────────
@@ -39,7 +38,6 @@ export default function IngredientCaptureScreen({
   model,
   onModelChange,
   onSubmit,
-  onSettings,
 }: Props) {
   const [images, setImages] = useState<SelectedImage[]>([]);
 
@@ -55,11 +53,6 @@ export default function IngredientCaptureScreen({
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
     >
-      {/* ── Settings icon (top-right) ── */}
-      <Pressable style={styles.settingsButton} onPress={onSettings}>
-        <Text style={styles.settingsIcon}>⚙</Text>
-      </Pressable>
-
       {/* ── Header ── */}
       <Text style={styles.heading}>What are we working with today?</Text>
       <Text style={styles.subtitle}>
@@ -73,14 +66,16 @@ export default function IngredientCaptureScreen({
         </Text>
       </View>
 
-      {/* ── Model selector ── */}
-      <View style={styles.section}>
-        <Text style={styles.label}>MODEL</Text>
-        <ModelSelector selected={model} onSelect={onModelChange} />
-      </View>
+      {/* ── Model selector (hidden) ── */}
+      {false && (
+        <View style={styles.section}>
+          <Text style={styles.label}>MODEL</Text>
+          <ModelSelector selected={model} onSelect={onModelChange} />
+        </View>
+      )}
 
       {/* ── Photo picker ── */}
-      <View style={styles.section}>
+      <View style={[styles.section, { alignItems: "center" }]}>
         <Text style={styles.label}>ADD PHOTOS</Text>
         <ImagePickerButton
           images={images}
@@ -111,18 +106,10 @@ const styles = StyleSheet.create({
   container: {
     padding: spacing.containerPadding,
     paddingTop: spacing.containerTop,
-    paddingBottom: spacing.containerBottom,
-  },
-
-  // ─── Settings ────────────────────────────────────────────
-  settingsButton: {
-    position: "absolute",
-    top: spacing.lg,
-    right: spacing.containerPadding,
-  },
-  settingsIcon: {
-    fontSize: 20,
-    color: colors.parchmentMuted,
+    paddingBottom: 100,
+    maxWidth: 480,
+    width: "100%",
+    alignSelf: "center",
   },
 
   // ─── Header ──────────────────────────────────────────────
