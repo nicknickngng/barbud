@@ -19,6 +19,7 @@ interface AuthContextType {
   signInWithEmail: (email: string, password: string) => Promise<string | null>;
   signUpWithEmail: (email: string, password: string) => Promise<string | null>;
   signInWithGoogle: () => Promise<string | null>;
+  updateDisplayName: (name: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 }
 
@@ -74,6 +75,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? error.message : null;
   }, []);
 
+  const updateDisplayName = useCallback(
+    async (name: string): Promise<string | null> => {
+      const { error } = await supabase.auth.updateUser({
+        data: { full_name: name },
+      });
+      if (error) return error.message;
+      // Refresh session so user_metadata reflects the new name immediately
+      const { data } = await supabase.auth.getSession();
+      if (data.session) setSession(data.session);
+      return null;
+    },
+    []
+  );
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     await AsyncStorage.removeItem("barbud_unlocked");
@@ -86,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInWithEmail,
     signUpWithEmail,
     signInWithGoogle,
+    updateDisplayName,
     signOut,
   };
 

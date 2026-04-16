@@ -18,6 +18,7 @@ import LoadingScreen from "./components/LoadingScreen";
 import CocktailResultScreen from "./components/CocktailResultScreen";
 import RecipeScreen from "./components/RecipeScreen";
 import BottomNav from "./components/BottomNav";
+import NameEntryScreen from "./components/NameEntryScreen";
 import SettingsModal from "./components/SettingsModal";
 
 const UNLOCK_KEY = "barbud_unlocked";
@@ -217,6 +218,10 @@ function AppContent() {
 
   if (!session) {
     return <AuthScreen />;
+  }
+
+  if (!user?.user_metadata?.full_name) {
+    return <NameEntryScreen onComplete={() => {}} />;
   }
 
   if (!unlocked) {

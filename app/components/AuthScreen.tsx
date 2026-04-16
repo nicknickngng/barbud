@@ -179,7 +179,7 @@ export default function AuthScreen() {
         </Animated.View>
 
         <Animated.Text style={[styles.credit, { opacity: creditOpacity }]}>
-          a project from nicolas ng
+          a bartending tool by nicolas ng
         </Animated.Text>
       </View>
     );
