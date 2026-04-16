@@ -20,13 +20,11 @@ import {
 interface Props {
   cocktails: Cocktail[];
   onMakeIt: (cocktail: Cocktail) => void;
-  onAnother: () => void;
 }
 
 export default function CocktailResultScreen({
   cocktails,
   onMakeIt,
-  onAnother,
 }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -74,10 +72,14 @@ export default function CocktailResultScreen({
             <Text style={styles.descriptionText}>{cocktail.description}</Text>
           ) : null}
           <Text style={styles.sectionLabel}>INGREDIENTS</Text>
-          {cocktail.ingredients.map((ingredient, i) => (
+          {(cocktail.ingredients ?? []).map((ingredient, i) => (
             <Text key={i} style={styles.recipeLine}>
               {ingredient.quantity}{"  "}{ingredient.name}
             </Text>
+          ))}
+          {/* Fallback for legacy API format */}
+          {!cocktail.ingredients && (cocktail.recipe ?? []).map((line, i) => (
+            <Text key={i} style={styles.recipeLine}>{line}</Text>
           ))}
         </View>
       </Animated.View>
@@ -94,11 +96,18 @@ export default function CocktailResultScreen({
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.outlineButton}
-          onPress={onAnother}
-          activeOpacity={0.7}
+          style={[styles.outlineButton, currentIndex >= cocktails.length - 1 && styles.outlineButtonExhausted]}
+          onPress={() => {
+            if (currentIndex < cocktails.length - 1) {
+              setCurrentIndex(currentIndex + 1);
+            }
+          }}
+          activeOpacity={currentIndex < cocktails.length - 1 ? 0.7 : 1}
+          disabled={currentIndex >= cocktails.length - 1}
         >
-          <Text style={styles.outlineButtonText}>Got anything else?</Text>
+          <Text style={styles.outlineButtonText}>
+            {currentIndex < cocktails.length - 1 ? "Got anything else?" : "Sorry, all out of ideas!"}
+          </Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -185,6 +194,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: spacing.md,
     backgroundColor: "transparent",
+  },
+  outlineButtonExhausted: {
+    borderColor: colors.parchmentMuted,
+    opacity: 0.4,
   },
   outlineButtonText: {
     fontFamily: fonts.heading,

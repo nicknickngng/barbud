@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 13,
     color: colors.parchmentMuted,
-    width: 70,
+    flex: 1,
   },
   sliderLabelRight: {
     textAlign: "right",

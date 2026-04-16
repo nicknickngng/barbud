@@ -67,9 +67,12 @@ export interface CocktailIngredient {
 export interface Cocktail {
   name: string;
   description?: string;
-  ingredients: CocktailIngredient[];
-  gear: string[];
-  steps: string[];
+  // Structured fields (new API format)
+  ingredients?: CocktailIngredient[];
+  gear?: string[];
+  steps?: string[];
+  // Legacy flat format (backward compat until Supabase function is redeployed)
+  recipe?: string[];
 }
 
 export interface RecommendResponse {

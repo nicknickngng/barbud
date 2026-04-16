@@ -46,22 +46,14 @@ export default function RecipeScreen({ cocktail }: Props) {
 
       {/* Tile 1 — INGREDIENTS */}
       <View style={styles.tile}>
-        <Text style={styles.tileLabel}>INGREDIENTS</Text>
-
         {/* Table header */}
         <View style={styles.tableHeader}>
-          <Text style={[styles.tileLabel, { flex: 2 }]}>INGREDIENT</Text>
-          <Text style={[styles.tileLabel, { flex: 1, textAlign: "right" }]}>AMOUNT</Text>
+          <Text style={[styles.tileLabel, { flex: 2, marginBottom: 0 }]}>INGREDIENT</Text>
+          <Text style={[styles.tileLabel, { flex: 1, textAlign: "right", marginBottom: 0 }]}>AMOUNT</Text>
         </View>
 
-        {cocktail.ingredients.map((ingredient: CocktailIngredient, i: number) => (
-          <View
-            key={i}
-            style={[
-              styles.ingredientRow,
-              { backgroundColor: i % 2 === 0 ? colors.charcoal : colors.charcoalLight },
-            ]}
-          >
+        {(cocktail.ingredients ?? []).map((ingredient: CocktailIngredient, i: number) => (
+          <View key={i} style={styles.ingredientRow}>
             <Text style={[styles.ingredientName, { flex: 2 }]}>{ingredient.name}</Text>
             <Text style={[styles.ingredientQty, { flex: 1 }]}>{formatQuantity(ingredient.quantity)}</Text>
           </View>
@@ -72,7 +64,7 @@ export default function RecipeScreen({ cocktail }: Props) {
       <View style={styles.tile}>
         <Text style={styles.tileLabel}>WHAT YOU&apos;LL NEED</Text>
 
-        {cocktail.gear.map((item: string, i: number) => (
+        {(cocktail.gear ?? []).map((item: string, i: number) => (
           <View key={i} style={styles.gearRow}>
             <Text style={styles.bullet}>•</Text>
             <Text style={styles.gearText}>{item}</Text>
@@ -84,13 +76,23 @@ export default function RecipeScreen({ cocktail }: Props) {
       <View style={styles.tile}>
         <Text style={styles.tileLabel}>HOW TO MAKE IT</Text>
 
-        {cocktail.steps.map((step: string, i: number) => (
+        {(cocktail.steps ?? []).map((step: string, i: number) => (
           <View key={i} style={styles.stepRow}>
             <Text style={styles.stepNumber}>{i + 1}</Text>
             <Text style={styles.stepText}>{step}</Text>
           </View>
         ))}
       </View>
+
+      {/* Legacy fallback — shown when structured fields absent (old API format) */}
+      {!cocktail.ingredients && !cocktail.steps && (cocktail.recipe ?? []).length > 0 && (
+        <View style={styles.tile}>
+          <Text style={styles.tileLabel}>RECIPE</Text>
+          {(cocktail.recipe ?? []).map((line: string, i: number) => (
+            <Text key={i} style={styles.stepText}>{line}</Text>
+          ))}
+        </View>
+      )}
 
       <Text style={styles.cheers}>Cheers! 🥂</Text>
     </ScrollView>

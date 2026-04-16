@@ -104,11 +104,6 @@ export default function ImagePickerButton({ images, onImagesChanged, maxImages }
             </Text>
           </Pressable>
         )}
-        {atLimit && (
-          <View style={[styles.addButton, styles.addButtonDisabled]}>
-            <Text style={[styles.addText, { fontSize: 11 }]}>Max {maxImages}{"\n"}reached</Text>
-          </View>
-        )}
       </ScrollView>
     </View>
   );

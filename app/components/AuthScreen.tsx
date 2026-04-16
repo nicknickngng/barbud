@@ -32,8 +32,9 @@ export default function AuthScreen() {
 
   // Splash animation values
   const titleOpacity = useRef(new Animated.Value(0)).current;
+  const titleTranslateY = useRef(new Animated.Value(0)).current;
   const buttonsOpacity = useRef(new Animated.Value(0)).current;
-  const buttonsTranslateY = useRef(new Animated.Value(-20)).current;
+  const buttonsTranslateY = useRef(new Animated.Value(20)).current;
   const creditOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -44,10 +45,16 @@ export default function AuthScreen() {
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: true,
     }).start(() => {
-      // Step 2: after 500ms delay, buttons fade in + slide down simultaneously
+      // Step 2: after 500ms delay, title slides up + buttons fade in simultaneously
       Animated.sequence([
         Animated.delay(500),
         Animated.parallel([
+          Animated.timing(titleTranslateY, {
+            toValue: -30,
+            duration: 600,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
           Animated.timing(buttonsOpacity, {
             toValue: 1,
             duration: 600,
@@ -121,7 +128,7 @@ export default function AuthScreen() {
   if (authView === "splash") {
     return (
       <View style={styles.container}>
-        <Animated.Text style={[styles.title, { opacity: titleOpacity }]}>
+        <Animated.Text style={[styles.title, { opacity: titleOpacity, transform: [{ translateY: titleTranslateY }] }]}>
           the nightcap project
         </Animated.Text>
 
@@ -137,10 +144,7 @@ export default function AuthScreen() {
         >
           {/* Log In — filled */}
           <Pressable
-            style={[
-              styles.filledButton,
-              !interactable && styles.buttonInvisible,
-            ]}
+            style={styles.filledButton}
             onPress={goToLogin}
             disabled={!interactable}
           >
@@ -149,11 +153,7 @@ export default function AuthScreen() {
 
           {/* Sign Up — outline */}
           <Pressable
-            style={[
-              styles.outlineButton,
-              { marginTop: spacing.md },
-              !interactable && styles.buttonInvisible,
-            ]}
+            style={[styles.outlineButton, { marginTop: spacing.md }]}
             onPress={goToSignup}
             disabled={!interactable}
           >
@@ -162,10 +162,7 @@ export default function AuthScreen() {
 
           {/* Continue with Google — text only */}
           <Pressable
-            style={[
-              styles.textButton,
-              !interactable && styles.buttonInvisible,
-            ]}
+            style={styles.textButton}
             onPress={handleGoogle}
             disabled={!interactable}
           >
@@ -363,8 +360,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: spacing.containerBottom,
     fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.parchmentFaint,
+    fontSize: 13,
+    color: colors.parchmentMuted,
     letterSpacing: letterSpacing.label,
   },
 });

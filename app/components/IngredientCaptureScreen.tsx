@@ -74,12 +74,15 @@ export default function IngredientCaptureScreen({
         </View>
       )}
 
-      {/* ── Photo picker ── */}
+      {/* ── Photo picker — label hidden at max, thumbnails always visible ── */}
       <View style={[styles.section, { alignItems: "center" }]}>
-        <Text style={styles.label}>ADD PHOTOS</Text>
+        {images.length < MAX_IMAGES && (
+          <Text style={styles.label}>ADD PHOTOS</Text>
+        )}
         <ImagePickerButton
           images={images}
           onImagesChanged={handleImagesChanged}
+          maxImages={MAX_IMAGES}
         />
       </View>
 

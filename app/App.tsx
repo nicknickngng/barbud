@@ -57,6 +57,11 @@ function AppContent() {
   const [apiReady, setApiReady] = useState(false);
   const lastIngredients = useRef<{ name: string; quantity: string; volume: string }[]>([]);
 
+  // Reset settings modal whenever session changes (sign-in / sign-out)
+  useEffect(() => {
+    setSettingsOpen(false);
+  }, [session]);
+
   // ─── Password gate ────────────────────────────────────────
   useEffect(() => {
     AsyncStorage.getItem(UNLOCK_KEY).then((val) => {
@@ -90,6 +95,7 @@ function AppContent() {
     setActiveProfileId,
     setActiveIngredients,
     addProfile,
+    removeProfile,
     loaded: profilesLoaded,
   } = useProfiles(user?.id ?? null);
 
@@ -243,6 +249,7 @@ function AppContent() {
           userName={userName}
           onSelectProfile={handleSelectProfile}
           onNewProfile={handleNewProfile}
+          onDeleteProfile={removeProfile}
         />
       );
     }
@@ -283,7 +290,6 @@ function AppContent() {
         <CocktailResultScreen
           cocktails={cocktails}
           onMakeIt={handleMakeIt}
-          onAnother={handleAnother}
         />
       );
     }

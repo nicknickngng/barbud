@@ -22,6 +22,7 @@ export interface Props {
   userName: string;
   onSelectProfile: (id: string) => void;
   onNewProfile: () => void;
+  onDeleteProfile: (id: string) => void;
 }
 
 export default function ProfileSelectionScreen({
@@ -29,6 +30,7 @@ export default function ProfileSelectionScreen({
   userName,
   onSelectProfile,
   onNewProfile,
+  onDeleteProfile,
 }: Props) {
   // Individual animated values for welcome text and subtitle
   const welcomeOpacity = useRef(new Animated.Value(0)).current;
@@ -113,18 +115,26 @@ export default function ProfileSelectionScreen({
         ]}
       >
         {displayedProfiles.map((profile) => (
-          <Pressable
-            key={profile.id}
-            style={styles.profileCard}
-            onPress={() => onSelectProfile(profile.id)}
-          >
-            <Text style={styles.profileName} numberOfLines={1}>
-              {profile.name}
-            </Text>
-            <Text style={styles.ingredientBadge}>
-              {ingredientLabel(profile.ingredients.length)}
-            </Text>
-          </Pressable>
+          <View key={profile.id} style={styles.profileCardRow}>
+            <Pressable
+              style={styles.profileCard}
+              onPress={() => onSelectProfile(profile.id)}
+            >
+              <Text style={styles.profileName} numberOfLines={1}>
+                {profile.name}
+              </Text>
+              <Text style={styles.ingredientBadge}>
+                {ingredientLabel(profile.ingredients.length)}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.deleteButton}
+              onPress={() => onDeleteProfile(profile.id)}
+              hitSlop={8}
+            >
+              <Text style={styles.deleteText}>×</Text>
+            </Pressable>
+          </View>
         ))}
 
         {canAddProfile && (
@@ -183,19 +193,38 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
 
+  // ─── Profile card row (card + delete button) ──────────────
+  profileCardRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: spacing.md,
+  },
+
   // ─── Profile card ─────────────────────────────────────────
   profileCard: {
-    width: "100%",
+    flex: 1,
     backgroundColor: colors.charcoal,
     borderRadius: borders.radius.md,
     borderWidth: borders.hairline,
     borderColor: colors.goldDim,
     paddingVertical: 16,
     paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  deleteButton: {
+    paddingLeft: spacing.sm,
+    paddingVertical: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteText: {
+    fontFamily: fonts.body,
+    fontSize: 22,
+    color: colors.parchmentMuted,
+    lineHeight: 26,
   },
   profileName: {
     fontFamily: fonts.headingSemiBold,
@@ -235,11 +264,11 @@ const styles = StyleSheet.create({
   // ─── Subtext ──────────────────────────────────────────────
   subtext: {
     fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.parchmentFaint,
+    fontSize: 13,
+    color: colors.parchmentMuted,
     textAlign: "center",
     marginTop: spacing.lg,
     maxWidth: 280,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 });
