@@ -41,12 +41,6 @@ export function useProfiles(userId: string | null) {
         // Fetch from Supabase
         let dbProfiles = await fetchProfiles(userId);
 
-        // Create a default profile if the user has none
-        if (dbProfiles.length === 0) {
-          const def = await createProfile(userId, "Default Profile", true);
-          dbProfiles = [def];
-        }
-
         if (cancelled) return;
 
         const mapped: Profile[] = dbProfiles.map((p) => ({

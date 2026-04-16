@@ -1,53 +1,50 @@
-import { useState, useEffect } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  ScrollView,
-  ActivityIndicator,
-} from "react-native";
+import { useState, useEffect, useRef } from "react";
+import { StyleSheet, View, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
 import { useAppFonts } from "./lib/fonts";
-import {
-  colors,
-  fonts,
-  letterSpacing,
-  spacing,
-  borders,
-  shadows,
-} from "./lib/theme";
-import ImagePickerButton, {
-  SelectedImage,
-} from "./components/ImagePickerButton";
-import ProcessedPhotos from "./components/ProcessedPhotos";
-import ModelSelector from "./components/ModelSelector";
-import ProfileSelector from "./components/ProfileSelector";
-import IngredientsTable from "./components/IngredientsTable";
-import PasswordGate from "./components/PasswordGate";
-import AuthScreen from "./components/AuthScreen";
-import CocktailList from "./components/CocktailList";
+import { colors } from "./lib/theme";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { analyzeImages, recommendCocktails, Cocktail, ModelType } from "./lib/api";
 import { useProfiles } from "./lib/profiles";
+import { SelectedImage } from "./components/ImagePickerButton";
+
+import AuthScreen from "./components/AuthScreen";
+import PasswordGate from "./components/PasswordGate";
+import ProfileSelectionScreen from "./components/ProfileSelectionScreen";
+import ProfileCreationScreen, { TastePreferences } from "./components/ProfileCreationScreen";
+import IngredientCaptureScreen from "./components/IngredientCaptureScreen";
+import LoadingScreen from "./components/LoadingScreen";
+import CocktailResultScreen from "./components/CocktailResultScreen";
+import RecipeScreen from "./components/RecipeScreen";
+import SettingsScreen from "./components/SettingsScreen";
 
 const UNLOCK_KEY = "barbud_unlocked";
+
+type AppScreen =
+  | "profile-select"
+  | "profile-create"
+  | "ingredient-capture"
+  | "loading"
+  | "cocktail-result"
+  | "recipe"
+  | "settings";
 
 function AppContent() {
   const [fontsLoaded] = useAppFonts();
   const { session, user, loading: authLoading, signOut } = useAuth();
   const [unlocked, setUnlocked] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [pendingImages, setPendingImages] = useState<SelectedImage[]>([]);
-  const [model, setModel] = useState<ModelType>("claude");
-  const [descriptions, setDescriptions] = useState<string[]>([]);
-  const [stale, setStale] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [cocktails, setCocktails] = useState<Cocktail[]>([]);
-  const [loadingCocktails, setLoadingCocktails] = useState(false);
 
+  // ─── App screen state machine ─────────────────────────────
+  const [screen, setScreen] = useState<AppScreen>("profile-select");
+  const [model, setModel] = useState<ModelType>("claude");
+  const [cocktails, setCocktails] = useState<Cocktail[]>([]);
+  const [currentCocktail, setCurrentCocktail] = useState<Cocktail | null>(null);
+  const [apiReady, setApiReady] = useState(false);
+  const lastIngredients = useRef<{ name: string; quantity: string; volume: string }[]>([]);
+
+  // ─── Password gate ────────────────────────────────────────
   useEffect(() => {
     AsyncStorage.getItem(UNLOCK_KEY).then((val) => {
       if (val === "true") setUnlocked(true);
@@ -60,279 +57,239 @@ function AppContent() {
     setUnlocked(true);
   };
 
+  // ─── Profiles ─────────────────────────────────────────────
   const {
     profiles,
     activeProfile,
     activeProfileId,
     setActiveProfileId,
     setActiveIngredients,
-    renameProfile,
     addProfile,
-    processedPhotos,
-    setProcessedPhotos,
     loaded: profilesLoaded,
   } = useProfiles(user?.id ?? null);
 
-  // Clear pending images when switching profiles
+  // Auto-redirect to profile creation when user has no profiles
   useEffect(() => {
-    setPendingImages([]);
-    setDescriptions([]);
-    setStale(false);
-    setError(null);
-    setCocktails([]);
-  }, [activeProfileId]);
+    if (profilesLoaded && profiles.length === 0 && screen === "profile-select") {
+      setScreen("profile-create");
+    }
+  }, [profilesLoaded, profiles.length, screen]);
 
-  const handleAnalyze = async () => {
-    if (pendingImages.length === 0) return;
+  // ─── Navigation handlers ──────────────────────────────────
+  const handleSelectProfile = (id: string) => {
+    setActiveProfileId(id);
+    setScreen("ingredient-capture");
+  };
 
-    setLoading(true);
-    setDescriptions([]);
-    setStale(false);
-    setError(null);
+  const handleNewProfile = () => {
+    setScreen("profile-create");
+  };
 
-    const allImages = [...processedPhotos, ...pendingImages];
+  const handleProfileCreated = (name: string, _prefs: TastePreferences) => {
+    addProfile(name);
+    setScreen("ingredient-capture");
+  };
+
+  const handleSettings = () => {
+    setScreen("settings");
+  };
+
+  const handleStartOver = () => {
+    setScreen("profile-select");
+  };
+
+  const handleMakeIt = (cocktail: Cocktail) => {
+    setCurrentCocktail(cocktail);
+    setScreen("recipe");
+  };
+
+  const handleDone = () => {
+    setScreen("ingredient-capture");
+  };
+
+  // ─── API logic ────────────────────────────────────────────
+  const runAnalysisAndRecommend = async (images: SelectedImage[]) => {
+    setApiReady(false);
+    setScreen("loading");
 
     try {
       const response = await analyzeImages(
-        allImages.map((img) => ({
-          base64: img.base64,
-          mimeType: img.mimeType,
-        })),
+        images.map((img) => ({ base64: img.base64, mimeType: img.mimeType })),
         model
       );
-      setDescriptions(response.descriptions);
       setActiveIngredients(response.ingredients);
+      lastIngredients.current = response.ingredients;
 
-      setProcessedPhotos(allImages);
-      setPendingImages([]);
-
-      // Fetch cocktail recommendations
-      fetchCocktails(response.ingredients);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchCocktails = async (ingredients: { name: string; quantity: string; volume: string }[]) => {
-    if (ingredients.length === 0) {
-      setCocktails([]);
+      if (response.ingredients.length > 0) {
+        const res = await recommendCocktails(response.ingredients, model);
+        setCocktails(res.cocktails);
+      } else {
+        setCocktails([]);
+      }
+    } catch {
+      // On error, go back to ingredient capture
+      setScreen("ingredient-capture");
       return;
     }
-    setLoadingCocktails(true);
+
+    setApiReady(true);
+  };
+
+  const handleAnother = async () => {
+    setApiReady(false);
+    setScreen("loading");
+
     try {
-      const res = await recommendCocktails(ingredients, model);
-      setCocktails(res.cocktails);
+      const ingredients =
+        lastIngredients.current.length > 0
+          ? lastIngredients.current
+          : activeProfile?.ingredients ?? [];
+
+      if (ingredients.length > 0) {
+        const res = await recommendCocktails(ingredients, model);
+        setCocktails(res.cocktails);
+      }
     } catch {
-      // Silently fail — cocktails are a bonus, not critical
-      setCocktails([]);
-    } finally {
-      setLoadingCocktails(false);
+      // Keep existing cocktails and transition anyway
     }
+
+    setApiReady(true);
   };
 
-  const handleRecheck = async () => {
-    if (processedPhotos.length === 0) return;
-
-    setLoading(true);
-    setDescriptions([]);
-    setError(null);
-
-    try {
-      const response = await analyzeImages(
-        processedPhotos.map((img) => ({
-          base64: img.base64,
-          mimeType: img.mimeType,
-        })),
-        model
-      );
-      setDescriptions(response.descriptions);
-      setActiveIngredients(response.ingredients);
-      setStale(false);
-
-      fetchCocktails(response.ingredients);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
+  const handleBothReady = () => {
+    setScreen("cocktail-result");
   };
 
-  const handleRemoveProcessed = (index: number) => {
-    const updated = processedPhotos.filter((_, i) => i !== index);
-    setProcessedPhotos(updated);
-    if (updated.length === 0) {
-      setActiveIngredients([]);
-      setStale(false);
-      setDescriptions([]);
-      setCocktails([]);
-    } else {
-      setStale(true);
-    }
+  const handleSignOut = async () => {
+    await AsyncStorage.removeItem(UNLOCK_KEY);
+    await signOut();
   };
 
+  // ─── Pre-app gates ────────────────────────────────────────
   if (!fontsLoaded || authLoading || checkingAuth) {
-    return <View style={styles.scroll} />;
+    return <View style={styles.blank} />;
   }
 
-  // Layer 1: Supabase auth
   if (!session) {
     return <AuthScreen />;
   }
 
-  // Layer 2: App password gate
   if (!unlocked) {
     return <PasswordGate onUnlock={handleUnlock} />;
   }
 
-  // Layer 3: Wait for profiles to load
-  if (!profilesLoaded || !activeProfile) {
+  if (!profilesLoaded) {
     return (
-      <View style={[styles.scroll, styles.loadingWrap]}>
+      <View style={styles.spinnerWrap}>
         <ActivityIndicator color={colors.gold} size="large" />
       </View>
     );
   }
 
-  const hasProcessedPhotos = processedPhotos.length > 0;
-  const canIdentify = pendingImages.length > 0 && !loading;
+  // ─── Screen state machine ─────────────────────────────────
+  const userName =
+    user?.user_metadata?.full_name ??
+    user?.email?.split("@")[0] ??
+    "there";
 
-  return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.container}
-    >
-      <StatusBar style="light" />
-
-      <Text style={styles.title}>the nightcap project</Text>
-      <Text style={styles.subtitle}>WHAT'S IN YOUR BAR CART?</Text>
-
-      <View style={styles.section}>
-        <Text style={styles.label}>MODEL</Text>
-        <ModelSelector selected={model} onSelect={setModel} />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.label}>PROFILE</Text>
-        <ProfileSelector
+  if (screen === "profile-select") {
+    return (
+      <>
+        <StatusBar style="light" />
+        <ProfileSelectionScreen
           profiles={profiles}
-          activeProfileId={activeProfileId}
-          onSelect={setActiveProfileId}
-          onRename={renameProfile}
-          onAdd={addProfile}
+          userName={userName}
+          onSelectProfile={handleSelectProfile}
+          onNewProfile={handleNewProfile}
         />
-      </View>
+      </>
+    );
+  }
 
-      <View style={styles.section}>
-        <Text style={styles.label}>ADD PHOTOS</Text>
-        <ImagePickerButton
-          images={pendingImages}
-          onImagesChanged={setPendingImages}
+  if (screen === "profile-create") {
+    return (
+      <>
+        <StatusBar style="light" />
+        <ProfileCreationScreen
+          onProfileCreated={handleProfileCreated}
+          onBack={() => setScreen(profiles.length > 0 ? "profile-select" : "profile-select")}
         />
-      </View>
+      </>
+    );
+  }
 
-      <Pressable
-        style={[styles.button, !canIdentify && styles.buttonDisabled]}
-        onPress={handleAnalyze}
-        disabled={!canIdentify}
-      >
-        {loading && !stale ? (
-          <ActivityIndicator color={colors.obsidian} />
-        ) : (
-          <Text style={styles.buttonText}>IDENTIFY INGREDIENTS</Text>
-        )}
-      </Pressable>
-
-      {/* Processed photos section */}
-      {hasProcessedPhotos && (
-        <View style={styles.section}>
-          <Text style={[styles.label, { marginTop: spacing.lg }]}>
-            PROCESSED PHOTOS
-          </Text>
-          <ProcessedPhotos
-            images={processedPhotos}
-            onRemove={handleRemoveProcessed}
-          />
+  if (screen === "ingredient-capture") {
+    // Safeguard: if no active profile yet, wait
+    if (!activeProfile) {
+      return (
+        <View style={styles.spinnerWrap}>
+          <ActivityIndicator color={colors.gold} size="large" />
         </View>
-      )}
+      );
+    }
+    return (
+      <>
+        <StatusBar style="light" />
+        <IngredientCaptureScreen
+          activeProfile={activeProfile}
+          model={model}
+          onModelChange={setModel}
+          onSubmit={runAnalysisAndRecommend}
+          onSettings={handleSettings}
+        />
+      </>
+    );
+  }
 
-      {/* Recheck button when stale */}
-      {stale && hasProcessedPhotos && (
-        <Pressable
-          style={[styles.recheckButton, loading && styles.buttonDisabled]}
-          onPress={handleRecheck}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={colors.gold} />
-          ) : (
-            <Text style={styles.recheckButtonText}>
-              CHECK MY INGREDIENTS AGAIN
-            </Text>
-          )}
-        </Pressable>
-      )}
+  if (screen === "loading") {
+    return (
+      <>
+        <StatusBar style="light" />
+        <LoadingScreen apiReady={apiReady} onBothReady={handleBothReady} />
+      </>
+    );
+  }
 
-      {/* Debug text */}
-      {descriptions.length > 0 && (
-        <View style={styles.resultCard}>
-          <Text style={styles.debugTitle}>DEBUG TEXT</Text>
-          {descriptions.map((desc, index) => (
-            <Text
-              key={index}
-              style={[
-                styles.resultText,
-                index > 0 && styles.resultTextSpaced,
-              ]}
-            >
-              {desc}
-            </Text>
-          ))}
-        </View>
-      )}
+  if (screen === "cocktail-result") {
+    return (
+      <>
+        <StatusBar style="light" />
+        <CocktailResultScreen
+          cocktails={cocktails}
+          onMakeIt={handleMakeIt}
+          onAnother={handleAnother}
+        />
+      </>
+    );
+  }
 
-      {/* Ingredients table */}
-      {activeProfile.ingredients.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.label}>
-            INGREDIENTS — {activeProfile.name.toUpperCase()}
-            {stale ? " (outdated)" : ""}
-          </Text>
-          <IngredientsTable
-            ingredients={activeProfile.ingredients}
-            stale={stale}
-          />
-        </View>
-      )}
+  if (screen === "recipe") {
+    return (
+      <>
+        <StatusBar style="light" />
+        <RecipeScreen
+          cocktail={currentCocktail!}
+          onDone={handleDone}
+        />
+      </>
+    );
+  }
 
-      {/* Recommended cocktails */}
-      {(cocktails.length > 0 || loadingCocktails) && (
-        <View style={styles.section}>
-          <Text style={styles.label}>
-            RECOMMENDED COCKTAILS
-            {stale ? " (outdated)" : ""}
-          </Text>
-          {loadingCocktails ? (
-            <ActivityIndicator color={colors.gold} style={{ marginTop: spacing.md }} />
-          ) : (
-            <CocktailList cocktails={cocktails} stale={stale} />
-          )}
-        </View>
-      )}
+  if (screen === "settings") {
+    return (
+      <>
+        <StatusBar style="light" />
+        <SettingsScreen
+          userEmail={user?.email ?? ""}
+          onSignOut={handleSignOut}
+          onStartOver={handleStartOver}
+          onClose={() => setScreen("ingredient-capture")}
+        />
+      </>
+    );
+  }
 
-      {error && (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-
-      {/* Sign out */}
-      <Pressable onPress={signOut} style={styles.signOutWrap}>
-        <Text style={styles.signOutText}>Sign out</Text>
-      </Pressable>
-    </ScrollView>
-  );
+  return <View style={styles.blank} />;
 }
 
 export default function App() {
@@ -344,124 +301,14 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  scroll: {
+  blank: {
     flex: 1,
     backgroundColor: colors.obsidian,
   },
-  loadingWrap: {
+  spinnerWrap: {
+    flex: 1,
+    backgroundColor: colors.obsidian,
     justifyContent: "center",
     alignItems: "center",
-  },
-  container: {
-    padding: spacing.containerPadding,
-    paddingTop: spacing.containerTop,
-    paddingBottom: spacing.containerBottom,
-  },
-  title: {
-    fontFamily: fonts.heading,
-    fontSize: 36,
-    color: colors.gold,
-    textAlign: "center",
-    letterSpacing: letterSpacing.heading,
-  },
-  subtitle: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.parchmentMuted,
-    textAlign: "center",
-    marginTop: spacing.sm,
-    marginBottom: spacing.xl,
-    letterSpacing: letterSpacing.subtitle,
-  },
-  section: {
-    marginBottom: spacing.section,
-  },
-  label: {
-    fontFamily: fonts.headingSemiBold,
-    fontSize: 11,
-    color: colors.parchmentMuted,
-    marginBottom: spacing.sm,
-    letterSpacing: letterSpacing.label,
-  },
-  button: {
-    backgroundColor: colors.gold,
-    borderRadius: borders.radius.md,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: spacing.xs,
-    ...shadows.warm,
-  },
-  buttonDisabled: {
-    opacity: 0.4,
-  },
-  buttonText: {
-    fontFamily: fonts.heading,
-    color: colors.obsidian,
-    fontSize: 15,
-    letterSpacing: letterSpacing.button,
-  },
-  recheckButton: {
-    backgroundColor: "transparent",
-    borderRadius: borders.radius.md,
-    borderWidth: 1,
-    borderColor: colors.gold,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginBottom: spacing.section,
-  },
-  recheckButtonText: {
-    fontFamily: fonts.headingSemiBold,
-    color: colors.gold,
-    fontSize: 13,
-    letterSpacing: letterSpacing.button,
-  },
-  resultCard: {
-    marginTop: spacing.lg,
-    marginBottom: spacing.lg,
-    backgroundColor: colors.charcoal,
-    borderRadius: borders.radius.lg,
-    borderWidth: borders.hairline,
-    borderColor: colors.goldDim,
-    padding: spacing.lg,
-    ...shadows.soft,
-  },
-  debugTitle: {
-    fontFamily: fonts.headingSemiBold,
-    fontSize: 11,
-    color: colors.gold,
-    letterSpacing: letterSpacing.label,
-    marginBottom: spacing.md,
-  },
-  resultText: {
-    fontFamily: fonts.body,
-    fontSize: 15,
-    lineHeight: 24,
-    color: colors.parchment,
-  },
-  resultTextSpaced: {
-    marginTop: spacing.md,
-  },
-  errorCard: {
-    marginTop: spacing.lg,
-    backgroundColor: colors.errorBg,
-    borderRadius: borders.radius.lg,
-    borderWidth: borders.hairline,
-    borderColor: colors.error,
-    padding: spacing.lg,
-  },
-  errorText: {
-    fontFamily: fonts.body,
-    fontSize: 15,
-    color: colors.error,
-  },
-  signOutWrap: {
-    marginTop: spacing.xl,
-    alignItems: "center",
-  },
-  signOutText: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.parchmentMuted,
-    letterSpacing: letterSpacing.gallery,
   },
 });

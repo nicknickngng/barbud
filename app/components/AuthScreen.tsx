@@ -19,48 +19,42 @@ import {
 } from "../lib/theme";
 import { useAuth } from "../lib/auth";
 
-type Mode = "signin" | "signup";
+type AuthView = "splash" | "login" | "signup";
 
 export default function AuthScreen() {
   const { signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
-  const [mode, setMode] = useState<Mode>("signin");
+  const [authView, setAuthView] = useState<AuthView>("splash");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [interactable, setInteractable] = useState(false);
 
+  // Splash animation values
   const titleOpacity = useRef(new Animated.Value(0)).current;
-  const titleTranslateY = useRef(new Animated.Value(0)).current;
-  const formOpacity = useRef(new Animated.Value(0)).current;
-  const formTranslateY = useRef(new Animated.Value(-24)).current;
+  const buttonsOpacity = useRef(new Animated.Value(0)).current;
+  const buttonsTranslateY = useRef(new Animated.Value(-20)).current;
   const creditOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Step 1: title fades in
+    // Step 1: title fades in over 800ms
     Animated.timing(titleOpacity, {
       toValue: 1,
       duration: 800,
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: true,
     }).start(() => {
-      // Step 2: after 0.5s, title slides up while form fades + slides in
+      // Step 2: after 500ms delay, buttons fade in + slide down simultaneously
       Animated.sequence([
         Animated.delay(500),
         Animated.parallel([
-          Animated.timing(titleTranslateY, {
-            toValue: -12,
-            duration: 600,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(formOpacity, {
+          Animated.timing(buttonsOpacity, {
             toValue: 1,
             duration: 600,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
-          Animated.timing(formTranslateY, {
+          Animated.timing(buttonsTranslateY, {
             toValue: 0,
             duration: 600,
             easing: Easing.inOut(Easing.ease),
@@ -70,7 +64,7 @@ export default function AuthScreen() {
       ]).start(({ finished }) => {
         if (finished) {
           setInteractable(true);
-          // Step 3: credit fades in at the bottom
+          // Step 3: credit fades in after buttons animation completes
           Animated.timing(creditOpacity, {
             toValue: 1,
             duration: 700,
@@ -87,7 +81,7 @@ export default function AuthScreen() {
     setLoading(true);
     setError(null);
 
-    const fn = mode === "signin" ? signInWithEmail : signUpWithEmail;
+    const fn = authView === "login" ? signInWithEmail : signUpWithEmail;
     const err = await fn(email.trim(), password);
 
     if (err) {
@@ -102,31 +96,100 @@ export default function AuthScreen() {
     if (err) setError(err);
   };
 
-  const toggleMode = () => {
-    setMode((m) => (m === "signin" ? "signup" : "signin"));
+  const goToLogin = () => {
     setError(null);
+    setEmail("");
+    setPassword("");
+    setAuthView("login");
   };
+
+  const goToSignup = () => {
+    setError(null);
+    setEmail("");
+    setPassword("");
+    setAuthView("signup");
+  };
+
+  const goToSplash = () => {
+    setError(null);
+    setEmail("");
+    setPassword("");
+    setAuthView("splash");
+  };
+
+  // ─── Splash ───────────────────────────────────────────────
+  if (authView === "splash") {
+    return (
+      <View style={styles.container}>
+        <Animated.Text style={[styles.title, { opacity: titleOpacity }]}>
+          the nightcap project
+        </Animated.Text>
+
+        <Animated.View
+          style={[
+            styles.buttonStack,
+            {
+              opacity: buttonsOpacity,
+              transform: [{ translateY: buttonsTranslateY }],
+            },
+          ]}
+          pointerEvents={interactable ? "auto" : "none"}
+        >
+          {/* Log In — filled */}
+          <Pressable
+            style={[
+              styles.filledButton,
+              !interactable && styles.buttonInvisible,
+            ]}
+            onPress={goToLogin}
+            disabled={!interactable}
+          >
+            <Text style={styles.filledButtonText}>Log In</Text>
+          </Pressable>
+
+          {/* Sign Up — outline */}
+          <Pressable
+            style={[
+              styles.outlineButton,
+              { marginTop: spacing.md },
+              !interactable && styles.buttonInvisible,
+            ]}
+            onPress={goToSignup}
+            disabled={!interactable}
+          >
+            <Text style={styles.outlineButtonText}>Sign Up</Text>
+          </Pressable>
+
+          {/* Continue with Google — text only */}
+          <Pressable
+            style={[
+              styles.textButton,
+              !interactable && styles.buttonInvisible,
+            ]}
+            onPress={handleGoogle}
+            disabled={!interactable}
+          >
+            <Text style={styles.textButtonText}>Continue with Google</Text>
+          </Pressable>
+        </Animated.View>
+
+        <Animated.Text style={[styles.credit, { opacity: creditOpacity }]}>
+          a project from nicolas ng
+        </Animated.Text>
+      </View>
+    );
+  }
+
+  // ─── Login / Signup ───────────────────────────────────────
+  const isLogin = authView === "login";
 
   return (
     <View style={styles.container}>
-      <Animated.Text
-        style={[
-          styles.title,
-          { opacity: titleOpacity, transform: [{ translateY: titleTranslateY }] },
-        ]}
-      >
-        the nightcap project
-      </Animated.Text>
+      <Text style={styles.title}>the nightcap project</Text>
 
-      <Animated.View
-        style={[
-          styles.form,
-          { opacity: formOpacity, transform: [{ translateY: formTranslateY }] },
-        ]}
-        pointerEvents={interactable ? "auto" : "none"}
-      >
+      <View style={styles.form}>
         <Text style={styles.subtitle}>
-          {mode === "signin" ? "SIGN IN TO CONTINUE" : "CREATE AN ACCOUNT"}
+          {isLogin ? "SIGN IN TO CONTINUE" : "CREATE AN ACCOUNT"}
         </Text>
 
         <TextInput
@@ -138,7 +201,6 @@ export default function AuthScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
-          editable={interactable}
         />
 
         <TextInput
@@ -151,55 +213,28 @@ export default function AuthScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           onSubmitEditing={handleEmailAuth}
-          editable={interactable}
         />
 
         <Pressable
-          style={[styles.button, (loading || !interactable) && styles.buttonDisabled]}
+          style={[styles.filledButton, loading && styles.buttonDisabled]}
           onPress={handleEmailAuth}
-          disabled={loading || !interactable}
+          disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color={colors.obsidian} />
           ) : (
-            <Text style={styles.buttonText}>
-              {mode === "signin" ? "SIGN IN" : "SIGN UP"}
+            <Text style={styles.filledButtonText}>
+              {isLogin ? "Sign In" : "Sign Up"}
             </Text>
           )}
         </Pressable>
 
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        <Pressable
-          style={styles.googleButton}
-          onPress={handleGoogle}
-          disabled={!interactable}
-        >
-          <Text style={styles.googleButtonText}>CONTINUE WITH GOOGLE</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={toggleMode}
-          style={styles.toggleWrap}
-          disabled={!interactable}
-        >
-          <Text style={styles.toggleText}>
-            {mode === "signin"
-              ? "Don't have an account? Sign up"
-              : "Already have an account? Sign in"}
-          </Text>
-        </Pressable>
-
         {error && <Text style={styles.error}>{error}</Text>}
-      </Animated.View>
 
-      <Animated.Text style={[styles.credit, { opacity: creditOpacity }]}>
-        a project from nicolas ng
-      </Animated.Text>
+        <Pressable onPress={goToSplash} style={styles.backLink}>
+          <Text style={styles.backLinkText}>← Back</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -218,8 +253,67 @@ const styles = StyleSheet.create({
     color: colors.gold,
     textAlign: "center",
     letterSpacing: letterSpacing.heading,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xl,
   },
+
+  // ─── Splash button stack ──────────────────────────────────
+  buttonStack: {
+    width: "100%",
+    maxWidth: 320,
+    alignItems: "center",
+  },
+
+  // ─── Shared button base ───────────────────────────────────
+  filledButton: {
+    width: "100%",
+    maxWidth: 320,
+    backgroundColor: colors.gold,
+    borderRadius: borders.radius.md,
+    paddingVertical: 16,
+    alignItems: "center",
+    ...shadows.warm,
+  },
+  filledButtonText: {
+    fontFamily: fonts.heading,
+    color: colors.obsidian,
+    fontSize: 15,
+    letterSpacing: letterSpacing.button,
+  },
+  outlineButton: {
+    width: "100%",
+    maxWidth: 320,
+    backgroundColor: "transparent",
+    borderRadius: borders.radius.md,
+    borderWidth: 1,
+    borderColor: colors.gold,
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  outlineButtonText: {
+    fontFamily: fonts.heading,
+    color: colors.gold,
+    fontSize: 15,
+    letterSpacing: letterSpacing.button,
+  },
+  textButton: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    alignItems: "center",
+  },
+  textButtonText: {
+    fontFamily: fonts.body,
+    color: colors.parchmentMuted,
+    fontSize: 13,
+    letterSpacing: letterSpacing.button,
+  },
+  buttonInvisible: {
+    opacity: 0,
+  },
+  buttonDisabled: {
+    opacity: 0.4,
+  },
+
+  // ─── Login / Signup form ──────────────────────────────────
   form: {
     width: "100%",
     alignItems: "center",
@@ -247,75 +341,24 @@ const styles = StyleSheet.create({
     letterSpacing: letterSpacing.gallery,
     marginBottom: spacing.md,
   },
-  button: {
-    width: "100%",
-    maxWidth: 320,
-    backgroundColor: colors.gold,
-    borderRadius: borders.radius.md,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: spacing.sm,
-    ...shadows.warm,
-  },
-  buttonDisabled: {
-    opacity: 0.4,
-  },
-  buttonText: {
-    fontFamily: fonts.heading,
-    color: colors.obsidian,
-    fontSize: 15,
-    letterSpacing: letterSpacing.button,
-  },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    width: "100%",
-    maxWidth: 320,
-    marginVertical: spacing.lg,
-  },
-  dividerLine: {
-    flex: 1,
-    height: borders.hairline,
-    backgroundColor: colors.goldDim,
-  },
-  dividerText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.parchmentMuted,
-    letterSpacing: letterSpacing.label,
-    marginHorizontal: spacing.md,
-  },
-  googleButton: {
-    width: "100%",
-    maxWidth: 320,
-    backgroundColor: "transparent",
-    borderRadius: borders.radius.md,
-    borderWidth: 1,
-    borderColor: colors.gold,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  googleButtonText: {
-    fontFamily: fonts.headingSemiBold,
-    color: colors.gold,
-    fontSize: 13,
-    letterSpacing: letterSpacing.button,
-  },
-  toggleWrap: {
-    marginTop: spacing.lg,
-  },
-  toggleText: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: colors.parchmentMuted,
-  },
   error: {
     fontFamily: fonts.body,
     fontSize: 14,
     color: colors.error,
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
     textAlign: "center",
+    maxWidth: 320,
   },
+  backLink: {
+    marginTop: spacing.lg,
+  },
+  backLinkText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.parchmentMuted,
+  },
+
+  // ─── Credit line ──────────────────────────────────────────
   credit: {
     position: "absolute",
     bottom: spacing.containerBottom,
