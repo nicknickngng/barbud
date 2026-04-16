@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Image, StyleSheet, Text, View } from "react-native";
 import {
   colors,
   fonts,
@@ -23,11 +23,13 @@ export default function LoadingScreen({ apiReady, onBothReady }: Props) {
   const [displayText, setDisplayText] = useState("");
 
   const pulseAnim = useRef(new Animated.Value(0.6)).current;
-  const glassOpacity = useRef(new Animated.Value(0)).current;
+  const mascotRotation = useRef(new Animated.Value(0)).current;
+  const mascotOpacity = useRef(new Animated.Value(1)).current;
 
   // Single interval ref for the typewriter, single timeout ref for pauses/delays
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const loopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const swayLoopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   // Sync apiReady prop into a ref so the cycling callbacks can read it without
   // needing to be re-created on every render
@@ -89,20 +91,25 @@ export default function LoadingScreen({ apiReady, onBothReady }: Props) {
 
   const startFinalMessage = useCallback(() => {
     startMessage(3, () => {
-      // Fade in the glass emoji
-      Animated.timing(glassOpacity, {
-        toValue: 1,
-        duration: 600,
+      // Stop the sway and return to upright
+      if (swayLoopRef.current) {
+        swayLoopRef.current.stop();
+        swayLoopRef.current = null;
+      }
+      Animated.timing(mascotRotation, {
+        toValue: 0,
+        duration: 400,
+        easing: Easing.inOut(Easing.ease),
         useNativeDriver: true,
       }).start();
 
-      // After fade (600ms) + extra 2000ms, call onBothReady
+      // After settle (400ms) + extra 2000ms, call onBothReady
       loopRef.current = setTimeout(() => {
         loopRef.current = null;
         onBothReadyRef.current();
-      }, 2600);
+      }, 2400);
     });
-  }, [startMessage, glassOpacity]);
+  }, [startMessage, mascotRotation]);
 
   const cycleMessages = useCallback(
     (index: number) => {
@@ -126,7 +133,7 @@ export default function LoadingScreen({ apiReady, onBothReady }: Props) {
     cycleMessagesRef.current = cycleMessages;
   }, [cycleMessages]);
 
-  // Mount effect: start pulse + begin cycling
+  // Mount effect: start pulse + sway + begin cycling
   useEffect(() => {
     const pulseLoop = Animated.loop(
       Animated.sequence([
@@ -144,20 +151,58 @@ export default function LoadingScreen({ apiReady, onBothReady }: Props) {
     );
     pulseLoop.start();
 
+    // Gentle sway: 0 -> 30deg -> -30deg -> 0 -> repeat
+    const swayLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(mascotRotation, {
+          toValue: 1,
+          duration: 1200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(mascotRotation, {
+          toValue: -1,
+          duration: 2400,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(mascotRotation, {
+          toValue: 0,
+          duration: 1200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    swayLoopRef.current = swayLoop;
+    swayLoop.start();
+
     // Kick off the cycling sequence
     cycleMessagesRef.current(0);
 
     return () => {
       pulseLoop.stop();
+      if (swayLoopRef.current) {
+        swayLoopRef.current.stop();
+      }
       clearTimers();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const rotation = mascotRotation.interpolate({
+    inputRange: [-1, 0, 1],
+    outputRange: ["-30deg", "0deg", "30deg"],
+  });
+
   return (
     <View style={styles.container}>
-      <Animated.View style={{ opacity: glassOpacity }}>
-        <Text style={styles.glassEmoji}>🍸</Text>
+      <Animated.View style={{ transform: [{ rotate: rotation }], marginBottom: spacing.lg }}>
+        <Image
+          source={require("../assets/nightcap_mascot_logo.png")}
+          style={styles.mascot}
+          resizeMode="contain"
+        />
       </Animated.View>
 
       <Animated.View style={{ opacity: pulseAnim }}>
@@ -177,10 +222,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: spacing.containerPadding,
   },
-  glassEmoji: {
-    fontSize: 32,
-    textAlign: "center",
-    marginBottom: spacing.md,
+  mascot: {
+    width: 100,
+    height: 100,
   },
   title: {
     fontFamily: fonts.heading,

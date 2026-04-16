@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Image,
 } from "react-native";
 import {
   colors,
@@ -128,9 +129,16 @@ export default function AuthScreen() {
   if (authView === "splash") {
     return (
       <View style={styles.container}>
-        <Animated.Text style={[styles.title, { opacity: titleOpacity, transform: [{ translateY: titleTranslateY }] }]}>
-          the nightcap project
-        </Animated.Text>
+        <Animated.View style={{ opacity: titleOpacity, transform: [{ translateY: titleTranslateY }], alignItems: "center" }}>
+          <Image
+            source={require("../assets/nightcap_mascot_logo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.title}>
+            the nightcap project
+          </Text>
+        </Animated.View>
 
         <Animated.View
           style={[
@@ -243,6 +251,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: spacing.containerPadding,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: spacing.md,
   },
   title: {
     fontFamily: fonts.heading,
