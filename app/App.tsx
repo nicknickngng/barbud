@@ -100,9 +100,14 @@ function AppContent() {
     loaded: profilesLoaded,
   } = useProfiles(user?.id ?? null);
 
-  // Auto-redirect to profile creation when user has no profiles
+  // True once we've seen at least one profile — prevents redirect when user
+  // manually deletes their last profile (vs. a brand-new account with none).
+  const hadProfilesRef = useRef(false);
+  if (profiles.length > 0) hadProfilesRef.current = true;
+
+  // Auto-redirect to profile creation only on first load with no profiles
   useEffect(() => {
-    if (profilesLoaded && profiles.length === 0 && screen === "profile-select") {
+    if (profilesLoaded && profiles.length === 0 && !hadProfilesRef.current && screen === "profile-select") {
       navigateTo("profile-create");
     }
   }, [profilesLoaded, profiles.length]);
