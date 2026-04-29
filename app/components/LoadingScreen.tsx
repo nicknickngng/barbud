@@ -87,6 +87,7 @@ export default function LoadingScreen({ apiReady, onBothReady }: Props) {
   // Forward-declare via ref so cycleMessages and startFinalMessage can
   // reference each other without stale-closure issues.
   const startFinalMessageRef = useRef<() => void>(() => {});
+  const startEllipsisRef = useRef<(onComplete: () => void) => void>(() => {});
   const cycleMessagesRef = useRef<(index: number) => void>(() => {});
 
   const startFinalMessage = useCallback(() => {
@@ -111,11 +112,35 @@ export default function LoadingScreen({ apiReady, onBothReady }: Props) {
     });
   }, [startMessage, mascotRotation]);
 
+  // Animate three dots sequentially (0.75s apart), then clear and call onComplete
+  const startEllipsis = useCallback(
+    (onComplete: () => void) => {
+      clearTimers();
+      setDisplayText("");
+      const D = 750;
+      loopRef.current = setTimeout(() => {
+        setDisplayText(".");
+        loopRef.current = setTimeout(() => {
+          setDisplayText("..");
+          loopRef.current = setTimeout(() => {
+            setDisplayText("...");
+            loopRef.current = setTimeout(() => {
+              setDisplayText("");
+              loopRef.current = null;
+              onComplete();
+            }, D);
+          }, D);
+        }, D);
+      }, D);
+    },
+    [clearTimers]
+  );
+
   const cycleMessages = useCallback(
     (index: number) => {
       startMessage(index % 3, () => {
         if (apiReadyRef.current) {
-          startFinalMessageRef.current();
+          startEllipsisRef.current(() => startFinalMessageRef.current());
         } else {
           cycleMessagesRef.current(index + 1);
         }
@@ -128,6 +153,10 @@ export default function LoadingScreen({ apiReady, onBothReady }: Props) {
   useEffect(() => {
     startFinalMessageRef.current = startFinalMessage;
   }, [startFinalMessage]);
+
+  useEffect(() => {
+    startEllipsisRef.current = startEllipsis;
+  }, [startEllipsis]);
 
   useEffect(() => {
     cycleMessagesRef.current = cycleMessages;

@@ -119,7 +119,7 @@ export default function ProfileCreationScreen({ onProfileCreated, onBack }: Prop
       }).start(() => {
         setTimeout(() => {
           onProfileCreated(profileName.trim(), prefs);
-        }, 1000);
+        }, 1500);
       });
     });
   };
