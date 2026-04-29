@@ -116,8 +116,8 @@ export default function ProfileCreationScreen({ onProfileCreated, onBack }: Prop
   }[] = [
     {
       label: "lightStrong",
-      leftLabel: "Light",
-      rightLabel: "Strong",
+      leftLabel: "Mellow",
+      rightLabel: "Bold",
       value: lightStrong,
       onChange: setLightStrong,
     },
@@ -137,8 +137,8 @@ export default function ProfileCreationScreen({ onProfileCreated, onBack }: Prop
     },
     {
       label: "simpleComplex",
-      leftLabel: "Simple",
-      rightLabel: "Complex",
+      leftLabel: "Easy",
+      rightLabel: "Involved",
       value: simpleComplex,
       onChange: setSimpleComplex,
     },
