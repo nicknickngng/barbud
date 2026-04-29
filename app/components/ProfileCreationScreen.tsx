@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Animated,
 } from "react-native";
 import {
   colors,
@@ -88,10 +89,13 @@ export default function ProfileCreationScreen({ onProfileCreated, onBack }: Prop
   const [notes, setNotes] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
+  const pageOpacity = useRef(new Animated.Value(1)).current;
+  const confirmOpacity = useRef(new Animated.Value(0)).current;
+
   const isDisabled = profileName.trim() === "";
 
   const handleSubmit = () => {
-    if (isDisabled) return;
+    if (isDisabled || submitted) return;
 
     setSubmitted(true);
     const prefs: TastePreferences = {
@@ -102,9 +106,22 @@ export default function ProfileCreationScreen({ onProfileCreated, onBack }: Prop
       notes,
     };
 
-    setTimeout(() => {
-      onProfileCreated(profileName.trim(), prefs);
-    }, 3000);
+    // Fade page out over 1s, then fade confirmation in over 0.3s, hold 1s, advance
+    Animated.timing(pageOpacity, {
+      toValue: 0,
+      duration: 1000,
+      useNativeDriver: true,
+    }).start(() => {
+      Animated.timing(confirmOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        setTimeout(() => {
+          onProfileCreated(profileName.trim(), prefs);
+        }, 1000);
+      });
+    });
   };
 
   const sliders: {
@@ -145,6 +162,8 @@ export default function ProfileCreationScreen({ onProfileCreated, onBack }: Prop
   ];
 
   return (
+    <View style={styles.wrapper}>
+    <Animated.View style={[styles.page, { opacity: pageOpacity }]} pointerEvents={submitted ? "none" : "auto"}>
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={styles.container}
@@ -207,19 +226,40 @@ export default function ProfileCreationScreen({ onProfileCreated, onBack }: Prop
       >
         <Text style={styles.submitText}>Build My Profile</Text>
       </Pressable>
-
-      {/* ── Success Flash ── */}
-      {submitted && (
-        <Text style={styles.successText}>Taste profile built!</Text>
-      )}
     </ScrollView>
+    </Animated.View>
+
+    {/* ── Confirmation overlay ── */}
+    <Animated.View style={[styles.confirmation, { opacity: confirmOpacity }]} pointerEvents="none">
+      <Text style={styles.confirmText}>Taste profile built!</Text>
+    </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
+  wrapper: {
     flex: 1,
     backgroundColor: colors.obsidian,
+  },
+  page: {
+    flex: 1,
+  },
+  confirmation: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.obsidian,
+  },
+  confirmText: {
+    fontFamily: fonts.heading,
+    fontSize: 28,
+    color: colors.gold,
+    letterSpacing: letterSpacing.heading,
+    textAlign: "center",
+  },
+  scroll: {
+    flex: 1,
   },
   container: {
     padding: spacing.containerPadding,
@@ -337,13 +377,4 @@ const styles = StyleSheet.create({
     letterSpacing: letterSpacing.button,
   },
 
-  // ─── Success flash ────────────────────────────────────────
-  successText: {
-    fontFamily: fonts.headingSemiBold,
-    fontSize: 14,
-    color: colors.gold,
-    letterSpacing: letterSpacing.label,
-    textAlign: "center",
-    marginTop: spacing.md,
-  },
 });
