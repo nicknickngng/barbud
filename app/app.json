@@ -24,7 +24,7 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/nightcap_mascot_logo.png",
+      "favicon": "./assets/nightcap_mascot_logo_bold.png",
       "name": "nightcap",
       "title": "nightcap"
     },
