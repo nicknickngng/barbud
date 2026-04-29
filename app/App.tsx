@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { StyleSheet, View, ActivityIndicator, Platform } from "react-native";
+import { StyleSheet, View, ActivityIndicator, Platform, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
 import { useAppFonts } from "./lib/fonts";
@@ -176,9 +176,14 @@ function AppContent() {
       } else {
         setCocktails([]);
       }
-    } catch {
-      // On error, go back to ingredient capture
+    } catch (err: any) {
+      console.error("[barbud] Analysis failed:", err);
       setScreen("ingredient-capture");
+      Alert.alert(
+        "Analysis Failed",
+        err?.message || "Something went wrong. Please try again.",
+        [{ text: "OK" }]
+      );
       return;
     }
 
