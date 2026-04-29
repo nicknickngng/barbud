@@ -92,31 +92,34 @@ export default function LoadingScreen({ apiReady, onBothReady }: Props) {
 
   const startFinalMessage = useCallback(() => {
     startMessage(3, () => {
-      // Stop the sway and return to upright
+      // Logo is already upright (settled during the ellipsis animation).
+      // Wait 2400ms then advance.
+      loopRef.current = setTimeout(() => {
+        loopRef.current = null;
+        onBothReadyRef.current();
+      }, 2400);
+    });
+  }, [startMessage]);
+
+  // Animate three dots sequentially (0.75s apart), then clear and call onComplete.
+  // Also stops the sway and returns the logo to upright so it has settled well
+  // before the final message appears.
+  const startEllipsis = useCallback(
+    (onComplete: () => void) => {
+      clearTimers();
+      setDisplayText("");
+
       if (swayLoopRef.current) {
         swayLoopRef.current.stop();
         swayLoopRef.current = null;
       }
       Animated.timing(mascotRotation, {
         toValue: 0,
-        duration: 400,
+        duration: 600,
         easing: Easing.inOut(Easing.ease),
         useNativeDriver: true,
       }).start();
 
-      // After settle (400ms) + extra 2000ms, call onBothReady
-      loopRef.current = setTimeout(() => {
-        loopRef.current = null;
-        onBothReadyRef.current();
-      }, 2400);
-    });
-  }, [startMessage, mascotRotation]);
-
-  // Animate three dots sequentially (0.75s apart), then clear and call onComplete
-  const startEllipsis = useCallback(
-    (onComplete: () => void) => {
-      clearTimers();
-      setDisplayText("");
       const D = 750;
       loopRef.current = setTimeout(() => {
         setDisplayText(".");
@@ -133,7 +136,7 @@ export default function LoadingScreen({ apiReady, onBothReady }: Props) {
         }, D);
       }, D);
     },
-    [clearTimers]
+    [clearTimers, mascotRotation]
   );
 
   const cycleMessages = useCallback(
